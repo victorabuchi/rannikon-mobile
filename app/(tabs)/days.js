@@ -13,32 +13,8 @@ import {
 } from 'react-native';
 
 import api from '../../lib/api';
+import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
 import { COLORS, FONTS } from '../../lib/theme';
-
-const MONTH_NAMES = [
-  'January',
-  'February',
-  'March',
-  'April',
-  'May',
-  'June',
-  'July',
-  'August',
-  'September',
-  'October',
-  'November',
-  'December',
-];
-
-function getDaysInMonth(month, year) {
-  return new Date(year, month, 0).getDate();
-}
-
-function formatDate(year, month, day) {
-  const mm = String(month).padStart(2, '0');
-  const dd = String(day).padStart(2, '0');
-  return `${year}-${mm}-${dd}`;
-}
 
 const EMPTY_FORM = {
   actual_start: '',
