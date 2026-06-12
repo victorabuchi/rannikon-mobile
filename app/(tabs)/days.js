@@ -6,22 +6,25 @@ import {
   Modal,
   Pressable,
   RefreshControl,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 
+import {
+  GreenPaperTable,
+  InlineWeeklySummary,
+  OrangePaperTable,
+  WhitePaperTable,
+} from '../../components/PaperTables';
 import api from '../../lib/api';
 import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
 import { COLORS, FONTS } from '../../lib/theme';
+import { VALID_START_TIMES, computeEntry } from '../../lib/timesheet';
 
-const EMPTY_FORM = {
-  actual_start: '',
-  actual_finish: '',
-  what_work: '',
-  break_mins: '',
-};
+const EMPTY_FORM = { start: '', finish: '', break_mins: '30', work: '' };
 
 export default function DaysScreen() {
   const today = new Date();
@@ -30,10 +33,12 @@ export default function DaysScreen() {
   const [entries, setEntries] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [modalVisible, setModalVisible] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(null);
+  const [editDay, setEditDay] = useState(null);
+  const [viewDay, setViewDay] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [confirmDeleteDay, setConfirmDeleteDay] = useState(null);
 
   const loadEntries = useCallback(async () => {
     setError('');
@@ -41,7 +46,7 @@ export default function DaysScreen() {
       const { data } = await api.get(`/api/timesheet/${month}/${year}`);
       const map = {};
       (data.entries || []).forEach((entry) => {
-        map[entry.entry_date] = entry;
+        map[entry.entry_date] = computeEntry(entry);
       });
       setEntries(map);
     } catch {
@@ -74,59 +79,62 @@ export default function DaysScreen() {
     }
   };
 
-  const openModal = (date) => {
-    const entry = entries[date];
-    setSelectedDate(date);
+  const toggleEdit = (day) => {
+    const next = editDay === day ? null : day;
+    const entry = next ? entries[formatDate(year, month, next)] : null;
     setForm({
-      actual_start: entry?.actual_start || '',
-      actual_finish: entry?.actual_finish || '',
-      what_work: entry?.what_work || '',
-      break_mins: entry?.break_mins != null ? String(entry.break_mins) : '',
+      start: entry?.actual_start?.slice(0, 5) || '',
+      finish: entry?.actual_finish?.slice(0, 5) || '',
+      work: entry?.what_work || '',
+      break_mins: String(entry?.break_mins || 30),
     });
-    setModalVisible(true);
+    setFormError('');
+    setEditDay(next);
+    setViewDay(null);
   };
 
-  const closeModal = () => {
-    setModalVisible(false);
-    setSelectedDate(null);
-    setForm(EMPTY_FORM);
+  const toggleView = (day) => {
+    setViewDay((current) => (current === day ? null : day));
   };
 
-  const handleSave = async () => {
+  const saveEntry = async () => {
+    if (!form.start || !form.finish) {
+      setFormError('Start and finish time are required');
+      return;
+    }
     setSaving(true);
+    setFormError('');
     try {
+      const date = formatDate(year, month, editDay);
       await api.post('/api/timesheet/entry', {
-        entry_date: selectedDate,
-        actual_start: form.actual_start,
-        actual_finish: form.actual_finish,
-        what_work: form.what_work,
-        break_mins: form.break_mins ? Number(form.break_mins) : 0,
+        entry_date: date,
+        actual_start: form.start,
+        actual_finish: form.finish,
+        what_work: form.work,
+        break_mins: parseInt(form.break_mins, 10) || 30,
       });
       await loadEntries();
-      closeModal();
-    } catch {
-      Alert.alert('Error', 'Could not save the entry. Please try again.');
+      setEditDay(null);
+    } catch (err) {
+      setFormError(err.response?.data?.error || 'Failed to save');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async () => {
-    setSaving(true);
+  const deleteEntry = async (day) => {
+    const date = formatDate(year, month, day);
     try {
-      await api.delete(`/api/timesheet/entry/${selectedDate}`);
+      await api.delete(`/api/timesheet/entry/${date}`);
       await loadEntries();
-      closeModal();
-    } catch {
-      Alert.alert('Error', 'Could not delete the entry. Please try again.');
-    } finally {
-      setSaving(false);
+      setConfirmDeleteDay(null);
+    } catch (err) {
+      Alert.alert('Delete failed', err.response?.data?.error || 'Could not delete the entry. Please try again.');
     }
   };
 
   const daysInMonth = getDaysInMonth(month, year);
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
-  const selectedEntry = selectedDate ? entries[selectedDate] : null;
 
   return (
     <View style={styles.container}>
@@ -150,162 +158,176 @@ export default function DaysScreen() {
         <FlatList
           data={days}
           keyExtractor={(day) => String(day)}
+          contentContainerStyle={styles.listContent}
+          keyboardShouldPersistTaps="handled"
           refreshControl={
-            <RefreshControl
-              refreshing={false}
-              onRefresh={loadEntries}
-              tintColor={COLORS.primary}
-            />
+            <RefreshControl refreshing={false} onRefresh={loadEntries} tintColor={COLORS.primary} />
           }
           renderItem={({ item: day }) => {
             const date = formatDate(year, month, day);
             const entry = entries[date];
+            const hasEntry = !!entry;
+            const isEditing = editDay === day;
+            const isViewing = viewDay === day;
+
             return (
-              <Pressable style={styles.row} onPress={() => openModal(date)}>
-                <View style={styles.rowDate}>
-                  <Text style={styles.rowDay}>{day}</Text>
-                </View>
-                <View style={styles.rowDetails}>
-                  {entry ? (
-                    <>
-                      <Text style={styles.rowText}>
-                        {entry.actual_start} - {entry.actual_finish}
-                        {entry.break_mins ? `  ·  ${entry.break_mins} min break` : ''}
-                      </Text>
-                      <View style={styles.badgeRow}>
-                        {entry.white_hours != null && (
+              <View style={[styles.card, hasEntry ? styles.cardWithEntry : styles.cardEmpty]}>
+                <View style={styles.cardTop}>
+                  <View style={styles.cardInfo}>
+                    <Text style={styles.dayLabel}>Day {day}</Text>
+                    {hasEntry ? (
+                      <View style={styles.entryInfo}>
+                        <Text style={styles.timeRange}>
+                          {entry.actual_start?.slice(0, 5)} to {entry.actual_finish?.slice(0, 5)}
+                        </Text>
+                        <View style={styles.badgeRow}>
                           <View style={[styles.badge, styles.badgeWhite]}>
-                            <Text style={[styles.badgeText, styles.badgeWhiteText]}>
-                              W {entry.white_hours}
-                            </Text>
+                            <Text style={[styles.badgeText, styles.badgeWhiteText]}>W: {entry.white_hours}</Text>
                           </View>
-                        )}
-                        {entry.orange_hours != null && (
                           <View style={[styles.badge, styles.badgeOrange]}>
-                            <Text style={[styles.badgeText, styles.badgeOrangeText]}>
-                              O {entry.orange_hours}
-                            </Text>
+                            <Text style={[styles.badgeText, styles.badgeOrangeText]}>O: {entry.orange_hours}</Text>
                           </View>
-                        )}
-                        {entry.total_hours != null && (
                           <View style={[styles.badge, styles.badgeTotal]}>
-                            <Text style={[styles.badgeText, styles.badgeTotalText]}>
-                              Total {entry.total_hours}
-                            </Text>
+                            <Text style={[styles.badgeText, styles.badgeTotalText]}>Total: {entry.total_hours}</Text>
                           </View>
-                        )}
+                        </View>
+                        {!!entry.what_work && <Text style={styles.workText}>{entry.what_work}</Text>}
                       </View>
-                      {!!entry.what_work && (
-                        <Text style={styles.rowSubtext}>{entry.what_work}</Text>
-                      )}
-                    </>
-                  ) : (
-                    <Text style={styles.rowEmpty}>No entry</Text>
-                  )}
+                    ) : (
+                      <Text style={styles.noEntry}>No entry yet</Text>
+                    )}
+                  </View>
+
+                  <View style={styles.actions}>
+                    {hasEntry && (
+                      <Pressable
+                        style={[styles.actionButton, isViewing ? styles.viewButtonActive : styles.viewButton]}
+                        onPress={() => toggleView(day)}
+                      >
+                        <Text style={[styles.actionButtonText, isViewing ? styles.viewButtonActiveText : styles.viewButtonText]}>
+                          {isViewing ? 'Hide' : 'View'}
+                        </Text>
+                      </Pressable>
+                    )}
+                    <Pressable
+                      style={[styles.actionButton, hasEntry ? styles.editButton : styles.addButton]}
+                      onPress={() => toggleEdit(day)}
+                    >
+                      <Text style={[styles.actionButtonText, hasEntry ? styles.editButtonText : styles.addButtonText]}>
+                        {isEditing ? 'Close' : hasEntry ? 'Edit' : '+ Add'}
+                      </Text>
+                    </Pressable>
+                    {hasEntry && (
+                      <Pressable
+                        style={[styles.actionButton, styles.deleteButton]}
+                        onPress={() => setConfirmDeleteDay(day)}
+                      >
+                        <Text style={styles.deleteButtonText}>Delete</Text>
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
-              </Pressable>
+
+                {isEditing && (
+                  <View style={styles.editForm}>
+                    {!!formError && <Text style={styles.formError}>{formError}</Text>}
+
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Actual start time</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={form.start}
+                        onChangeText={(text) => setForm((f) => ({ ...f, start: text }))}
+                        placeholder="HH:MM e.g. 10:15"
+                        placeholderTextColor={COLORS.textMuted}
+                      />
+                      {!!form.start && !VALID_START_TIMES.includes(form.start) && (
+                        <Text style={styles.warningText}>Should be 9:00, 9:15, 9:30, or 9:45</Text>
+                      )}
+                    </View>
+
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Actual finish time</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={form.finish}
+                        onChangeText={(text) => setForm((f) => ({ ...f, finish: text }))}
+                        placeholder="HH:MM e.g. 20:45"
+                        placeholderTextColor={COLORS.textMuted}
+                      />
+                    </View>
+
+                    <View style={styles.field}>
+                      <Text style={styles.label}>Total break (minutes)</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={form.break_mins}
+                        onChangeText={(text) =>
+                          setForm((f) => ({ ...f, break_mins: text.replace(/[^0-9]/g, '') }))
+                        }
+                        keyboardType="number-pad"
+                        placeholder="30"
+                        placeholderTextColor={COLORS.textMuted}
+                      />
+                      <Text style={styles.helperText}>Min 30 min eating break</Text>
+                    </View>
+
+                    <View style={styles.field}>
+                      <Text style={styles.label}>What work</Text>
+                      <TextInput
+                        style={styles.input}
+                        value={form.work}
+                        onChangeText={(text) => setForm((f) => ({ ...f, work: text }))}
+                        placeholder="e.g. cleaning, planting"
+                        placeholderTextColor={COLORS.textMuted}
+                      />
+                    </View>
+
+                    <View style={styles.formButtons}>
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.saveButton,
+                          pressed && styles.saveButtonPressed,
+                          saving && styles.saveButtonDisabled,
+                        ]}
+                        onPress={saveEntry}
+                        disabled={saving}
+                      >
+                        <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save'}</Text>
+                      </Pressable>
+                      <Pressable
+                        style={styles.cancelButton}
+                        onPress={() => {
+                          setEditDay(null);
+                          setFormError('');
+                        }}
+                      >
+                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                )}
+
+                {isViewing && hasEntry && <InlineDayView day={day} year={year} month={month} entry={entry} entries={entries} />}
+              </View>
             );
           }}
         />
       )}
 
-      <Modal
-        visible={modalVisible}
-        animationType="slide"
-        transparent
-        onRequestClose={closeModal}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>{selectedDate}</Text>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Start time</Text>
-              <TextInput
-                style={styles.input}
-                value={form.actual_start}
-                onChangeText={(text) =>
-                  setForm((f) => ({ ...f, actual_start: text }))
-                }
-                placeholder="08:00"
-                placeholderTextColor={COLORS.textMuted}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Finish time</Text>
-              <TextInput
-                style={styles.input}
-                value={form.actual_finish}
-                onChangeText={(text) =>
-                  setForm((f) => ({ ...f, actual_finish: text }))
-                }
-                placeholder="16:00"
-                placeholderTextColor={COLORS.textMuted}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Break (minutes)</Text>
-              <TextInput
-                style={styles.input}
-                value={form.break_mins}
-                onChangeText={(text) =>
-                  setForm((f) => ({
-                    ...f,
-                    break_mins: text.replace(/[^0-9]/g, ''),
-                  }))
-                }
-                keyboardType="number-pad"
-                placeholder="30"
-                placeholderTextColor={COLORS.textMuted}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>What work</Text>
-              <TextInput
-                style={styles.input}
-                value={form.what_work}
-                onChangeText={(text) =>
-                  setForm((f) => ({ ...f, what_work: text }))
-                }
-                placeholder="Describe the work"
-                placeholderTextColor={COLORS.textMuted}
-              />
-            </View>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.button,
-                pressed && styles.buttonPressed,
-                saving && styles.buttonDisabled,
-              ]}
-              onPress={handleSave}
-              disabled={saving}
-            >
-              <Text style={styles.buttonText}>
-                {saving ? 'Saving...' : 'Save'}
-              </Text>
-            </Pressable>
-
-            {!!selectedEntry && (
-              <Pressable
-                style={({ pressed }) => [
-                  styles.deleteButton,
-                  pressed && styles.deleteButtonPressed,
-                  saving && styles.buttonDisabled,
-                ]}
-                onPress={handleDelete}
-                disabled={saving}
-              >
-                <Text style={styles.deleteButtonText}>Delete entry</Text>
+      <Modal visible={confirmDeleteDay != null} transparent animationType="fade" onRequestClose={() => setConfirmDeleteDay(null)}>
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete Day {confirmDeleteDay}?</Text>
+            <Text style={styles.confirmText}>This will permanently remove this entry from all papers.</Text>
+            <View style={styles.confirmButtons}>
+              <Pressable style={styles.confirmCancelButton} onPress={() => setConfirmDeleteDay(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
               </Pressable>
-            )}
-
-            <Pressable style={styles.cancelButton} onPress={closeModal}>
-              <Text style={styles.cancelButtonText}>Cancel</Text>
-            </Pressable>
+              <Pressable style={styles.confirmDeleteButton} onPress={() => deleteEntry(confirmDeleteDay)}>
+                <Text style={styles.confirmDeleteText}>Yes, delete</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -313,10 +335,51 @@ export default function DaysScreen() {
   );
 }
 
+function InlineDayView({ day, year, month, entry, entries }) {
+  return (
+    <View style={styles.inlineView}>
+      <Text style={styles.inlineTitle}>WHITE PAPER: WORK PAID BY THE HOUR</Text>
+      <Text style={styles.inlineSubtitle}>8 HOURS PER DAY / 40 HOURS PER WEEK</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
+        <WhitePaperTable days={[day]} year={year} month={month} entries={entries} />
+      </ScrollView>
+      <Text style={styles.inlineItalic}>
+        When you have worked 4 hours, You need to have an eating break, minimum of 30 mins. START WORK 9:00, 9:15,
+        9:30 or 9:45.
+      </Text>
+
+      <Text style={[styles.inlineTitle, { color: '#b45309' }]}>ORANGE PAPER: EXTRAWORK PAID BY THE HOUR</Text>
+      <Text style={styles.inlineSubtitle}>
+        MAXIMUM 3 HOURS PER DAY (MONDAY-FRIDAY) | MAXIMUM 11 HOURS PER DAY (SATURDAY)
+      </Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
+        <OrangePaperTable days={[day]} year={year} month={month} entries={entries} />
+      </ScrollView>
+      <Text style={styles.inlineItalic}>
+        Start work 9:00, 9:15, 9:30 or 9:45. Work does not start 9:05, 9:10, 9:20, 9:25 etc.
+      </Text>
+
+      <Text style={[styles.inlineTitle, { color: '#1565c0' }]}>WEEKLY SUMMARY</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
+        <InlineWeeklySummary entry={entry} />
+      </ScrollView>
+
+      <Text style={[styles.inlineTitle, { color: '#2d6a2d' }]}>
+        GREEN PAPER: TIME USED FOR PICKUP (SALARY PAID BY KILOS)
+      </Text>
+      <Text style={styles.inlineSubtitleMuted}>Not in use yet. Berry picking season coming soon.</Text>
+      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
+        <GreenPaperTable days={[day]} />
+      </ScrollView>
+      <Text style={[styles.inlineItalic, { marginBottom: 0 }]}>HOX, NEED TO PICKUP 10 KILO PER HOUR!</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: COLORS.background,
+    backgroundColor: COLORS.surface,
   },
   monthHeader: {
     flexDirection: 'row',
@@ -324,6 +387,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 20,
     paddingVertical: 16,
+    backgroundColor: COLORS.background,
     borderBottomWidth: 1,
     borderBottomColor: COLORS.border,
   },
@@ -351,37 +415,53 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 24,
   },
-  row: {
+  listContent: {
+    padding: 12,
+    gap: 8,
+  },
+  card: {
+    backgroundColor: COLORS.background,
+    borderRadius: 10,
+    padding: 12,
+    marginBottom: 8,
+  },
+  cardWithEntry: {
+    borderWidth: 2,
+    borderColor: COLORS.primary,
+  },
+  cardEmpty: {
+    borderWidth: 1,
+    borderColor: COLORS.border,
+  },
+  cardTop: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.border,
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 8,
   },
-  rowDate: {
-    width: 40,
-    alignItems: 'center',
-  },
-  rowDay: {
-    fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: COLORS.primary,
-  },
-  rowDetails: {
+  cardInfo: {
     flex: 1,
-    marginLeft: 16,
+    minWidth: 140,
   },
-  rowText: {
-    fontFamily: FONTS.medium,
+  dayLabel: {
+    fontFamily: FONTS.bold,
     fontSize: 15,
     color: COLORS.text,
   },
-  rowSubtext: {
+  entryInfo: {
+    marginTop: 4,
+  },
+  noEntry: {
     fontFamily: FONTS.regular,
     fontSize: 13,
-    color: COLORS.textMuted,
-    marginTop: 2,
+    color: '#bbbbbb',
+    marginTop: 4,
+  },
+  timeRange: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: '#555555',
   },
   badgeRow: {
     flexDirection: 'row',
@@ -391,11 +471,11 @@ const styles = StyleSheet.create({
   },
   badge: {
     paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
   badgeText: {
-    fontFamily: FONTS.medium,
+    fontFamily: FONTS.bold,
     fontSize: 11,
   },
   badgeWhite: {
@@ -416,90 +496,236 @@ const styles = StyleSheet.create({
   badgeTotalText: {
     color: '#1565c0',
   },
-  rowEmpty: {
+  workText: {
     fontFamily: FONTS.regular,
-    fontSize: 15,
-    color: COLORS.textMuted,
+    fontSize: 11,
+    color: '#888888',
+    marginTop: 6,
   },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'flex-end',
+  actions: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
   },
-  modalContent: {
-    backgroundColor: COLORS.background,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    padding: 24,
+  actionButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
-  modalTitle: {
-    fontFamily: FONTS.bold,
-    fontSize: 18,
-    color: COLORS.primary,
-    marginBottom: 16,
-  },
-  field: {
-    marginBottom: 14,
-  },
-  label: {
+  actionButtonText: {
     fontFamily: FONTS.medium,
-    fontSize: 14,
-    color: COLORS.text,
-    marginBottom: 6,
+    fontSize: 12,
   },
-  input: {
-    fontFamily: FONTS.regular,
-    fontSize: 16,
-    color: COLORS.text,
+  viewButton: {
+    backgroundColor: '#e8f5e9',
     borderWidth: 1,
-    borderColor: COLORS.border,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    backgroundColor: COLORS.surface,
+    borderColor: COLORS.primary,
   },
-  button: {
+  viewButtonText: {
+    color: COLORS.primary,
+  },
+  viewButtonActive: {
     backgroundColor: COLORS.primary,
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 4,
+    borderWidth: 1,
+    borderColor: COLORS.primary,
   },
-  buttonPressed: {
-    backgroundColor: COLORS.primaryDark,
+  viewButtonActiveText: {
+    color: COLORS.white,
   },
-  buttonDisabled: {
-    opacity: 0.7,
+  editButton: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: '#cccccc',
   },
-  buttonText: {
-    fontFamily: FONTS.bold,
-    fontSize: 16,
+  editButtonText: {
+    color: '#333333',
+  },
+  addButton: {
+    backgroundColor: COLORS.primary,
+  },
+  addButtonText: {
     color: COLORS.white,
   },
   deleteButton: {
+    backgroundColor: '#fdecea',
     borderWidth: 1,
-    borderColor: COLORS.error,
-    borderRadius: 8,
-    paddingVertical: 14,
-    alignItems: 'center',
-    marginTop: 12,
-  },
-  deleteButtonPressed: {
-    backgroundColor: COLORS.surface,
+    borderColor: '#ffc1c0',
   },
   deleteButtonText: {
     fontFamily: FONTS.medium,
-    fontSize: 16,
+    fontSize: 12,
+    color: '#c0392b',
+  },
+  editForm: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.border,
+    gap: 10,
+  },
+  formError: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
     color: COLORS.error,
   },
-  cancelButton: {
+  field: {},
+  label: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: COLORS.text,
+    marginBottom: 4,
+  },
+  input: {
+    fontFamily: FONTS.regular,
+    fontSize: 15,
+    color: COLORS.text,
+    borderWidth: 1,
+    borderColor: '#cccccc',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    backgroundColor: COLORS.background,
+  },
+  warningText: {
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    color: '#e08a00',
+    marginTop: 2,
+  },
+  helperText: {
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    color: '#888888',
+    marginTop: 2,
+  },
+  formButtons: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  saveButton: {
+    flex: 1,
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 12,
     alignItems: 'center',
-    paddingVertical: 14,
-    marginTop: 4,
+  },
+  saveButtonPressed: {
+    backgroundColor: COLORS.primaryDark,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#aaaaaa',
+  },
+  saveButtonText: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.white,
+  },
+  cancelButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#cccccc',
+    backgroundColor: COLORS.background,
   },
   cancelButtonText: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: '#333333',
+  },
+  inlineView: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#eeeeee',
+  },
+  inlineTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  inlineSubtitle: {
+    fontFamily: FONTS.regular,
+    fontSize: 11,
+    color: '#555555',
+    marginBottom: 6,
+  },
+  inlineSubtitleMuted: {
+    fontFamily: FONTS.regular,
+    fontStyle: 'italic',
+    fontSize: 11,
+    color: '#888888',
+    marginBottom: 6,
+  },
+  inlineTable: {
+    marginBottom: 12,
+  },
+  inlineItalic: {
+    fontFamily: FONTS.regular,
+    fontStyle: 'italic',
+    fontSize: 11,
+    color: '#555555',
+    marginBottom: 16,
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  confirmCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    paddingVertical: 28,
+    paddingHorizontal: 32,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  confirmTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 17,
+    color: COLORS.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  confirmText: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  confirmButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  confirmCancelButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dddddd',
+    backgroundColor: COLORS.background,
+  },
+  confirmCancelText: {
     fontFamily: FONTS.medium,
-    fontSize: 16,
-    color: COLORS.textMuted,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  confirmDeleteButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: '#c0392b',
+  },
+  confirmDeleteText: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.white,
   },
 });
