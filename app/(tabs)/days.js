@@ -172,6 +172,29 @@ export default function DaysScreen() {
                         {entry.actual_start} - {entry.actual_finish}
                         {entry.break_mins ? `  ·  ${entry.break_mins} min break` : ''}
                       </Text>
+                      <View style={styles.badgeRow}>
+                        {entry.white_hours != null && (
+                          <View style={[styles.badge, styles.badgeWhite]}>
+                            <Text style={[styles.badgeText, styles.badgeWhiteText]}>
+                              W {entry.white_hours}
+                            </Text>
+                          </View>
+                        )}
+                        {entry.orange_hours != null && (
+                          <View style={[styles.badge, styles.badgeOrange]}>
+                            <Text style={[styles.badgeText, styles.badgeOrangeText]}>
+                              O {entry.orange_hours}
+                            </Text>
+                          </View>
+                        )}
+                        {entry.total_hours != null && (
+                          <View style={[styles.badge, styles.badgeTotal]}>
+                            <Text style={[styles.badgeText, styles.badgeTotalText]}>
+                              Total {entry.total_hours}
+                            </Text>
+                          </View>
+                        )}
+                      </View>
                       {!!entry.what_work && (
                         <Text style={styles.rowSubtext}>{entry.what_work}</Text>
                       )}
@@ -359,6 +382,39 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textMuted,
     marginTop: 2,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+  },
+  badge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  badgeText: {
+    fontFamily: FONTS.medium,
+    fontSize: 11,
+  },
+  badgeWhite: {
+    backgroundColor: '#f0f0f0',
+  },
+  badgeWhiteText: {
+    color: '#555555',
+  },
+  badgeOrange: {
+    backgroundColor: '#fff3e0',
+  },
+  badgeOrangeText: {
+    color: '#b45309',
+  },
+  badgeTotal: {
+    backgroundColor: '#e3f2fd',
+  },
+  badgeTotalText: {
+    color: '#1565c0',
   },
   rowEmpty: {
     fontFamily: FONTS.regular,
