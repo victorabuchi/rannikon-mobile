@@ -1,7 +1,15 @@
+import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
 import { useAuth } from '../../lib/auth';
 import { COLORS, FONTS } from '../../lib/theme';
+
+const TAB_ACTIVE_COLOR = '#2d6a2d';
+const TAB_INACTIVE_COLOR = '#999';
+
+function tabIcon(name) {
+  return ({ color, size }) => <Ionicons name={name} size={size} color={color} />;
+}
 
 export default function TabsLayout() {
   const { worker } = useAuth();
@@ -17,18 +25,28 @@ export default function TabsLayout() {
           backgroundColor: COLORS.background,
           borderTopColor: COLORS.border,
         },
-        tabBarActiveTintColor: COLORS.primary,
-        tabBarInactiveTintColor: COLORS.textMuted,
+        tabBarActiveTintColor: TAB_ACTIVE_COLOR,
+        tabBarInactiveTintColor: TAB_INACTIVE_COLOR,
         tabBarLabelStyle: { fontFamily: FONTS.medium, fontSize: 12 },
       }}
     >
-      <Tabs.Screen name="days" options={{ title: 'Days' }} />
-      <Tabs.Screen name="papers" options={{ title: 'Papers' }} />
-      <Tabs.Screen name="profile" options={{ title: 'Profile' }} />
+      <Tabs.Screen
+        name="days"
+        options={{ title: 'Days', tabBarIcon: tabIcon('calendar-outline') }}
+      />
+      <Tabs.Screen
+        name="papers"
+        options={{ title: 'Papers', tabBarIcon: tabIcon('document-text-outline') }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{ title: 'Profile', tabBarIcon: tabIcon('person-outline') }}
+      />
       <Tabs.Screen
         name="supervisor"
         options={{
           title: 'Supervisor',
+          tabBarIcon: tabIcon('people-outline'),
           href: role === 'supervisor' ? undefined : null,
         }}
       />
@@ -36,6 +54,7 @@ export default function TabsLayout() {
         name="admin"
         options={{
           title: 'Admin',
+          tabBarIcon: tabIcon('settings-outline'),
           href: role === 'admin' ? undefined : null,
         }}
       />
