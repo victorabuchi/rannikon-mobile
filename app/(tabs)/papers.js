@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 
 import api from '../../lib/api';
+import { useAuth } from '../../lib/auth';
 import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
 import { COLORS, FONTS } from '../../lib/theme';
 
@@ -161,10 +162,18 @@ function EditableCell({
   );
 }
 
-function WhitePaper({ days, year, month, entries, onSave }) {
+function WhitePaper({ days, year, month, entries, onSave, worker }) {
   const border = '#333333';
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator>
+    <View>
+      <View style={styles.paperHeader}>
+        <Text style={styles.paperWorkerInfo}>
+          Name: {worker?.full_name || '-'}    Work number: {worker?.work_number || '-'}
+        </Text>
+        <Text style={[styles.paperTitle, { color: border }]}>WORK PAID BY THE HOUR</Text>
+        <Text style={styles.paperSubtitle}>8 HOURS PER DAY / 40 HOURS PER WEEK</Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator>
       <View style={[styles.table, paperBorder(border)]}>
         <View style={[styles.headerRow, { backgroundColor: '#e0e0e0' }]}>
           <HeaderCell width={COL.date} label="Date" style={paperBorder(border)} />
@@ -225,14 +234,24 @@ function WhitePaper({ days, year, month, entries, onSave }) {
           );
         })}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 function OrangePaper({ days, year, month, entries, onSave }) {
   const border = '#c97d00';
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator>
+    <View>
+      <View style={styles.paperHeader}>
+        <Text style={[styles.paperTitle, { color: border }]}>
+          ORANGE PAPER — EXTRAWORK PAID BY THE HOUR
+        </Text>
+        <Text style={styles.paperSubtitle}>
+          MAXIMUM 3 HOURS PER DAY (MONDAY-FRIDAY) | MAXIMUM 11 HOURS PER DAY (SATURDAY)
+        </Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator>
       <View style={[styles.table, paperBorder(border)]}>
         <View style={[styles.headerRow, { backgroundColor: '#ffe0a0' }]}>
           <HeaderCell width={COL.date} label="Date" style={paperBorder(border)} />
@@ -293,7 +312,8 @@ function OrangePaper({ days, year, month, entries, onSave }) {
           );
         })}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -302,7 +322,11 @@ function WeeklyPaper({ year, month, daysInMonth, entries }) {
   const weeks = getWeeks(year, month, daysInMonth);
 
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator>
+    <View>
+      <View style={styles.paperHeader}>
+        <Text style={[styles.paperTitle, { color: '#1565c0' }]}>WEEKLY SUMMARY</Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator>
       <View>
         {weeks.map((weekDays, weekIndex) => (
           <View
@@ -363,14 +387,24 @@ function WeeklyPaper({ year, month, daysInMonth, entries }) {
           </View>
         ))}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 function GreenPaper({ days }) {
   const border = '#2d6a2d';
   return (
-    <ScrollView horizontal showsHorizontalScrollIndicator>
+    <View>
+      <View style={styles.paperHeader}>
+        <Text style={[styles.paperTitle, { color: border }]}>
+          GREEN PAPER — TIME USED FOR PICKUP (SALARY PAID BY KILOS)
+        </Text>
+        <Text style={styles.paperSubtitle}>
+          Not in use yet — berry picking season coming soon
+        </Text>
+      </View>
+      <ScrollView horizontal showsHorizontalScrollIndicator>
       <View style={[styles.table, paperBorder(border)]}>
         <View style={[styles.headerRow, { backgroundColor: '#e8f5e9' }]}>
           <HeaderCell width={COL.date} label="Date" style={paperBorder(border)} />
@@ -393,11 +427,13 @@ function GreenPaper({ days }) {
           </View>
         ))}
       </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
 export default function PapersScreen() {
+  const { worker } = useAuth();
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [year, setYear] = useState(today.getFullYear());
@@ -505,6 +541,7 @@ export default function PapersScreen() {
               month={month}
               entries={entries}
               onSave={handleFieldSave}
+              worker={worker}
             />
           )}
           {paperType === 'orange' && (
@@ -598,6 +635,27 @@ const styles = StyleSheet.create({
   paperContainer: {
     paddingHorizontal: 16,
     paddingBottom: 32,
+  },
+  paperHeader: {
+    marginBottom: 10,
+  },
+  paperWorkerInfo: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: COLORS.text,
+    marginBottom: 6,
+  },
+  paperTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 15,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  paperSubtitle: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: COLORS.textMuted,
+    marginTop: 2,
   },
   table: {
     borderTopWidth: 1,
