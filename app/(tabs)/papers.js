@@ -42,6 +42,18 @@ function formatExtraBreak(breakMins) {
   return `${hours}:${String(mins).padStart(2, '0')}`;
 }
 
+function parseHoursToMinutes(value) {
+  if (value == null || value === '') return 0;
+  const [h, m] = String(value).split(':');
+  return (Number(h) || 0) * 60 + (Number(m) || 0);
+}
+
+function formatMinutesToHours(totalMinutes) {
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+  return `${hours}:${String(mins).padStart(2, '0')}`;
+}
+
 function getWeeks(year, month, daysInMonth) {
   const weeks = [];
   let current = null;
@@ -328,26 +340,39 @@ function WeeklyPaper({ year, month, daysInMonth, entries }) {
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator>
       <View>
-        {weeks.map((weekDays, weekIndex) => (
-          <View
-            key={weekIndex}
-            style={[styles.table, paperBorder(border), weekIndex > 0 && styles.weekSpacing]}
-          >
-            <View style={[styles.headerRow, { backgroundColor: '#bbdefb' }]}>
-              <HeaderCell width={COL.type} label="" style={paperBorder(border)} />
-              {weekDays.map((day, i) => (
-                <HeaderCell
-                  key={i}
-                  width={COL.day}
-                  label={day != null ? String(day) : ''}
-                  style={paperBorder(border)}
-                />
-              ))}
-              <HeaderCell width={COL.total} label="Total hours" style={paperBorder(border)} />
-            </View>
-            {WEEK_ROWS.map((row) => {
-              let total = 0;
-              return (
+        {weeks.map((weekDays, weekIndex) => {
+          let workingMinutes = 0;
+          let extraMinutes = 0;
+          weekDays.forEach((day, i) => {
+            if (day == null || i === 6) return;
+            const entry = entries[formatDate(year, month, day)];
+            workingMinutes += parseHoursToMinutes(entry?.white_hours);
+            extraMinutes += parseHoursToMinutes(entry?.orange_hours);
+          });
+          const weekTotalMinutes = {
+            white_hours: workingMinutes,
+            orange_hours: extraMinutes,
+            total_hours: workingMinutes + extraMinutes,
+          };
+
+          return (
+            <View
+              key={weekIndex}
+              style={[styles.table, paperBorder(border), weekIndex > 0 && styles.weekSpacing]}
+            >
+              <View style={[styles.headerRow, { backgroundColor: '#bbdefb' }]}>
+                <HeaderCell width={COL.type} label="" style={paperBorder(border)} />
+                {weekDays.map((day, i) => (
+                  <HeaderCell
+                    key={i}
+                    width={COL.day}
+                    label={day != null ? String(day) : ''}
+                    style={paperBorder(border)}
+                  />
+                ))}
+                <HeaderCell width={COL.total} label="Total hours" style={paperBorder(border)} />
+              </View>
+              {WEEK_ROWS.map((row) => (
                 <View key={row.field} style={styles.row}>
                   <Cell
                     width={COL.type}
@@ -368,9 +393,6 @@ function WeeklyPaper({ year, month, daysInMonth, entries }) {
                     }
                     const date = formatDate(year, month, day);
                     const value = entries[date]?.[row.field];
-                    if (value != null && value !== '') {
-                      total += Number(value) || 0;
-                    }
                     return (
                       <Cell
                         key={i}
@@ -380,12 +402,16 @@ function WeeklyPaper({ year, month, daysInMonth, entries }) {
                       />
                     );
                   })}
-                  <Cell width={COL.total} text={String(total)} style={paperBorder(border)} />
+                  <Cell
+                    width={COL.total}
+                    text={formatMinutesToHours(weekTotalMinutes[row.field])}
+                    style={paperBorder(border)}
+                  />
                 </View>
-              );
-            })}
-          </View>
-        ))}
+              ))}
+            </View>
+          );
+        })}
       </View>
       </ScrollView>
     </View>
