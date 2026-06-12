@@ -39,15 +39,11 @@ export default function TabsLayout() {
         options={{ title: 'Papers', tabBarIcon: tabIcon('document-text-outline') }}
       />
       <Tabs.Screen
-        name="profile"
-        options={{ title: 'Profile', tabBarIcon: tabIcon('person-outline') }}
-      />
-      <Tabs.Screen
         name="supervisor"
         options={{
           title: 'Supervisor',
           tabBarIcon: tabIcon('people-outline'),
-          href: role === 'supervisor' ? undefined : null,
+          href: role === 'supervisor' || role === 'admin' ? undefined : null,
         }}
       />
       <Tabs.Screen
@@ -57,6 +53,18 @@ export default function TabsLayout() {
           tabBarIcon: tabIcon('settings-outline'),
           href: role === 'admin' ? undefined : null,
         }}
+      />
+      <Tabs.Screen
+        name="housemaster"
+        options={{
+          title: 'Housemaster',
+          tabBarIcon: tabIcon('home-outline'),
+          href: role === 'housemaster' || role === 'admin' ? undefined : null,
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{ title: 'Profile', tabBarIcon: tabIcon('person-outline') }}
       />
     </Tabs>
   );
