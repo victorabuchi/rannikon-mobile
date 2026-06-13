@@ -230,13 +230,15 @@ export default function PapersScreen() {
                 HOX, NEED TO PICKUP 10 KILO PER HOUR!
               </Text>
               <WorkerInfo worker={worker} />
-              <View style={styles.banner}>
-                <Text style={styles.bannerText}>
-                  Berry picking season not yet started. This paper will be active when picking begins.
-                </Text>
-              </View>
               <ScrollView horizontal showsHorizontalScrollIndicator style={styles.table}>
-                <GreenPaperTable days={days} />
+                <GreenPaperTable
+                  days={days}
+                  year={year}
+                  month={month}
+                  entries={entries}
+                  editable
+                  onSave={handleFieldSave}
+                />
               </ScrollView>
               <Text style={styles.footerItalic}>
                 When you have worked 4 hours, You need to have an eating break, minimum of 30 mins.
@@ -391,20 +393,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: '#555555',
     marginTop: 8,
-  },
-  banner: {
-    backgroundColor: '#fff9c4',
-    borderWidth: 1,
-    borderColor: '#f9a825',
-    borderRadius: 6,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 12,
-  },
-  bannerText: {
-    fontFamily: FONTS.regular,
-    fontSize: 12,
-    color: '#6d4c00',
   },
   downloadRow: {
     flexDirection: 'row',

@@ -24,7 +24,9 @@ import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
 import { COLORS, FONTS } from '../../lib/theme';
 import { VALID_START_TIMES, computeEntry } from '../../lib/timesheet';
 
-const EMPTY_FORM = { start: '', finish: '', break_mins: '30', work: '' };
+const BERRY_SEASON = false;
+
+const EMPTY_FORM = { start: '', finish: '', break_mins: '30', work: '', kg_picked: '' };
 
 export default function DaysScreen() {
   const today = new Date();
@@ -87,6 +89,7 @@ export default function DaysScreen() {
       finish: entry?.actual_finish?.slice(0, 5) || '',
       work: entry?.what_work || '',
       break_mins: String(entry?.break_mins || 30),
+      kg_picked: entry?.kg_picked != null ? String(entry.kg_picked) : '',
     });
     setFormError('');
     setEditDay(next);
@@ -112,6 +115,7 @@ export default function DaysScreen() {
         actual_finish: form.finish,
         what_work: form.work,
         break_mins: parseInt(form.break_mins, 10) || 30,
+        kg_picked: form.kg_picked ? parseFloat(form.kg_picked) : null,
       });
       await loadEntries();
       setEditDay(null);
@@ -190,6 +194,11 @@ export default function DaysScreen() {
                           <View style={[styles.badge, styles.badgeTotal]}>
                             <Text style={[styles.badgeText, styles.badgeTotalText]}>Total: {entry.total_hours}</Text>
                           </View>
+                          {!!entry.kg_picked && (
+                            <View style={[styles.badge, styles.badgeKg]}>
+                              <Text style={[styles.badgeText, styles.badgeKgText]}>KG: {entry.kg_picked}</Text>
+                            </View>
+                          )}
                         </View>
                         {!!entry.what_work && <Text style={styles.workText}>{entry.what_work}</Text>}
                       </View>
@@ -283,6 +292,20 @@ export default function DaysScreen() {
                       />
                     </View>
 
+                    {BERRY_SEASON && (
+                      <View style={styles.field}>
+                        <Text style={[styles.label, styles.kgLabel]}>Kg picked (optional)</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={form.kg_picked}
+                          onChangeText={(text) => setForm((f) => ({ ...f, kg_picked: text }))}
+                          placeholder="e.g. 24.5"
+                          placeholderTextColor={COLORS.textMuted}
+                          keyboardType="decimal-pad"
+                        />
+                      </View>
+                    )}
+
                     <View style={styles.formButtons}>
                       <Pressable
                         style={({ pressed }) => [
@@ -367,9 +390,8 @@ function InlineDayView({ day, year, month, entry, entries }) {
       <Text style={[styles.inlineTitle, { color: '#2d6a2d' }]}>
         GREEN PAPER: TIME USED FOR PICKUP (SALARY PAID BY KILOS)
       </Text>
-      <Text style={styles.inlineSubtitleMuted}>Not in use yet. Berry picking season coming soon.</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
-        <GreenPaperTable days={[day]} />
+        <GreenPaperTable days={[day]} year={year} month={month} entries={entries} />
       </ScrollView>
       <Text style={[styles.inlineItalic, { marginBottom: 0 }]}>HOX, NEED TO PICKUP 10 KILO PER HOUR!</Text>
     </View>
@@ -496,6 +518,14 @@ const styles = StyleSheet.create({
   badgeTotalText: {
     color: '#1565c0',
   },
+  badgeKg: {
+    backgroundColor: '#e8f5e9',
+    borderWidth: 1,
+    borderColor: '#c8e6c9',
+  },
+  badgeKgText: {
+    color: '#2d6a2d',
+  },
   workText: {
     fontFamily: FONTS.regular,
     fontSize: 11,
@@ -575,6 +605,9 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 4,
   },
+  kgLabel: {
+    color: COLORS.primary,
+  },
   input: {
     fontFamily: FONTS.regular,
     fontSize: 15,
@@ -649,13 +682,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: 11,
     color: '#555555',
-    marginBottom: 6,
-  },
-  inlineSubtitleMuted: {
-    fontFamily: FONTS.regular,
-    fontStyle: 'italic',
-    fontSize: 11,
-    color: '#888888',
     marginBottom: 6,
   },
   inlineTable: {
