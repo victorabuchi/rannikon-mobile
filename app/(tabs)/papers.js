@@ -17,7 +17,7 @@ import {
 } from '../../components/PaperTables';
 import api from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { MONTH_NAMES, getDaysInMonth } from '../../lib/dates';
+import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
 import { exportPaperExcel, exportPaperPdf } from '../../lib/exporters';
 import { COLORS, FONTS } from '../../lib/theme';
 import { computeEntry } from '../../lib/timesheet';
@@ -44,6 +44,7 @@ export default function PapersScreen() {
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [year, setYear] = useState(today.getFullYear());
   const [entries, setEntries] = useState({});
+  const [greenEntries, setGreenEntries] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [paperType, setPaperType] = useState('white');
@@ -65,10 +66,25 @@ export default function PapersScreen() {
     }
   }, [month, year]);
 
+  const loadGreenEntries = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/api/green/${month}/${year}`);
+      const map = {};
+      (data.entries || []).forEach((entry) => {
+        const day = parseInt(entry.entry_date.split('T')[0].split('-')[2], 10);
+        map[formatDate(year, month, day)] = entry;
+      });
+      setGreenEntries(map);
+    } catch {
+      // green entries are optional - ignore load errors
+    }
+  }, [month, year]);
+
   useEffect(() => {
     setLoading(true);
     loadEntries();
-  }, [loadEntries]);
+    loadGreenEntries();
+  }, [loadEntries, loadGreenEntries]);
 
   const handleFieldSave = useCallback(
     async (date, field, value) => {
@@ -76,6 +92,14 @@ export default function PapersScreen() {
       await loadEntries();
     },
     [loadEntries]
+  );
+
+  const handleGreenFieldSave = useCallback(
+    async (date, field, value) => {
+      await api.patch(`/api/green/entry/${date}/field`, { field, value });
+      await loadGreenEntries();
+    },
+    [loadGreenEntries]
   );
 
   const goToPreviousMonth = () => {
@@ -102,7 +126,7 @@ export default function PapersScreen() {
   const handleDownloadPdf = async () => {
     setExporting(true);
     try {
-      await exportPaperPdf(paperType, { month, year, worker, entries, daysInMonth });
+      await exportPaperPdf(paperType, { month, year, worker, entries, greenEntries, daysInMonth });
     } catch {
       Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
     } finally {
@@ -113,7 +137,7 @@ export default function PapersScreen() {
   const handleDownloadExcel = async () => {
     setExporting(true);
     try {
-      await exportPaperExcel(paperType, { month, year, worker, entries, daysInMonth });
+      await exportPaperExcel(paperType, { month, year, worker, entries, greenEntries, daysInMonth });
     } catch {
       Alert.alert('Export failed', 'Could not generate the Excel file. Please try again.');
     } finally {
@@ -235,9 +259,9 @@ export default function PapersScreen() {
                   days={days}
                   year={year}
                   month={month}
-                  entries={entries}
+                  greenEntries={greenEntries}
                   editable
-                  onSave={handleFieldSave}
+                  onSave={handleGreenFieldSave}
                 />
               </ScrollView>
               <Text style={styles.footerItalic}>

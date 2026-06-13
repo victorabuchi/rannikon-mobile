@@ -275,7 +275,7 @@ export function OrangePaperTable({ days, year, month, entries, editable = false,
   );
 }
 
-export function GreenPaperTable({ days, year, month, entries, editable = false, onSave }) {
+export function GreenPaperTable({ days, year, month, greenEntries, editable = false, onSave }) {
   const c = PAPER_COLORS.green;
   const border = { borderColor: c.border };
   return (
@@ -292,55 +292,43 @@ export function GreenPaperTable({ days, year, month, entries, editable = false, 
       </View>
       {days.map((day) => {
         const date = formatDate(year, month, day);
-        const entry = entries?.[date];
-        const hasEntry = !!entry;
+        const ge = greenEntries?.[date];
+        const hasEntry = !!ge;
         return (
-          <View key={day} style={[styles.row, { backgroundColor: hasEntry ? '#f6fff6' : '#ffffff' }]}>
+          <View key={date} style={[styles.row, { backgroundColor: hasEntry ? '#f6fff6' : '#ffffff' }]}>
             <Cell width={COL.date} text={String(day)} textStyle={styles.bold} style={border} />
             <EditableCell
               width={COL.time}
-              value={entry?.actual_start?.slice(0, 5)}
+              value={ge?.start_time?.slice(0, 5)}
               editable={editable && hasEntry}
-              onSave={(v) => onSave(date, 'actual_start', v)}
+              onSave={(v) => onSave(date, 'start_time', v)}
               style={border}
             />
             <EditableCell
               width={COL.time}
-              value={entry?.actual_finish?.slice(0, 5)}
+              value={ge?.finish_time?.slice(0, 5)}
               editable={editable && hasEntry}
-              onSave={(v) => onSave(date, 'actual_finish', v)}
+              onSave={(v) => onSave(date, 'finish_time', v)}
               style={border}
             />
             <Cell width={COL.breakCol} text="1 hour" textStyle={{ color: '#888888' }} style={border} />
-            <Cell
-              width={COL.breakCol}
-              text={hasEntry && entry.orange_break && entry.orange_break !== '0:00' ? entry.orange_break : ''}
-              style={border}
-            />
-            <EditableCell
-              width={COL.hours}
-              value={entry?.white_hours}
-              editable={editable && hasEntry}
-              onSave={(v) => onSave(date, 'white_hours', v)}
-              keyboardType="decimal-pad"
-              textStyle={hasEntry && { fontWeight: '700', color: '#2d6a2d' }}
-              style={border}
-            />
+            <Cell width={COL.breakCol} text="" style={border} />
+            <Cell width={COL.hours} text="" style={border} />
             <EditableCell
               width={COL.work}
-              value={entry?.what_work}
+              value={ge?.what_picked}
               editable={editable && hasEntry}
-              onSave={(v) => onSave(date, 'what_work', v)}
+              onSave={(v) => onSave(date, 'what_picked', v)}
               align="left"
               style={border}
             />
             <EditableCell
               width={COL.hours}
-              value={entry?.kg_picked != null ? String(entry.kg_picked) : ''}
+              value={ge?.kg_picked != null ? String(ge.kg_picked) : ''}
               editable={editable && hasEntry}
               onSave={(v) => onSave(date, 'kg_picked', v)}
               keyboardType="decimal-pad"
-              textStyle={hasEntry && entry.kg_picked != null && { fontWeight: '700', color: '#2d6a2d' }}
+              textStyle={hasEntry && ge.kg_picked != null && { fontWeight: '700', color: '#2d6a2d' }}
               style={border}
             />
           </View>

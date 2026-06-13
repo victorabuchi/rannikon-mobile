@@ -24,20 +24,21 @@ import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
 import { COLORS, FONTS } from '../../lib/theme';
 import { VALID_START_TIMES, computeEntry } from '../../lib/timesheet';
 
-const BERRY_SEASON = false;
-
-const EMPTY_FORM = { start: '', finish: '', break_mins: '30', work: '', kg_picked: '' };
+const EMPTY_FORM = { start: '', finish: '', break_mins: '30', work: '' };
+const EMPTY_GREEN_FORM = { start: '', finish: '', kg: '', what: '' };
 
 export default function DaysScreen() {
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [year, setYear] = useState(today.getFullYear());
   const [entries, setEntries] = useState({});
+  const [greenEntries, setGreenEntries] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [editDay, setEditDay] = useState(null);
   const [viewDay, setViewDay] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
+  const [greenForm, setGreenForm] = useState(EMPTY_GREEN_FORM);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmDeleteDay, setConfirmDeleteDay] = useState(null);
@@ -58,10 +59,25 @@ export default function DaysScreen() {
     }
   }, [month, year]);
 
+  const loadGreenEntries = useCallback(async () => {
+    try {
+      const { data } = await api.get(`/api/green/${month}/${year}`);
+      const map = {};
+      (data.entries || []).forEach((entry) => {
+        const day = parseInt(entry.entry_date.split('T')[0].split('-')[2], 10);
+        map[formatDate(year, month, day)] = entry;
+      });
+      setGreenEntries(map);
+    } catch {
+      // green entries are optional - ignore load errors
+    }
+  }, [month, year]);
+
   useEffect(() => {
     setLoading(true);
     loadEntries();
-  }, [loadEntries]);
+    loadGreenEntries();
+  }, [loadEntries, loadGreenEntries]);
 
   const goToPreviousMonth = () => {
     if (month === 1) {
@@ -84,12 +100,18 @@ export default function DaysScreen() {
   const toggleEdit = (day) => {
     const next = editDay === day ? null : day;
     const entry = next ? entries[formatDate(year, month, next)] : null;
+    const ge = next ? greenEntries[formatDate(year, month, next)] : null;
     setForm({
       start: entry?.actual_start?.slice(0, 5) || '',
       finish: entry?.actual_finish?.slice(0, 5) || '',
       work: entry?.what_work || '',
       break_mins: String(entry?.break_mins || 30),
-      kg_picked: entry?.kg_picked != null ? String(entry.kg_picked) : '',
+    });
+    setGreenForm({
+      start: ge?.start_time?.slice(0, 5) || '',
+      finish: ge?.finish_time?.slice(0, 5) || '',
+      kg: ge?.kg_picked != null ? String(ge.kg_picked) : '',
+      what: ge?.what_picked || '',
     });
     setFormError('');
     setEditDay(next);
@@ -115,9 +137,18 @@ export default function DaysScreen() {
         actual_finish: form.finish,
         what_work: form.work,
         break_mins: parseInt(form.break_mins, 10) || 30,
-        kg_picked: form.kg_picked ? parseFloat(form.kg_picked) : null,
       });
       await loadEntries();
+      if (greenForm.start || greenForm.finish || greenForm.kg || greenForm.what) {
+        await api.post('/api/green/entry', {
+          entry_date: `${date}T12:00:00.000Z`,
+          start_time: greenForm.start || null,
+          finish_time: greenForm.finish || null,
+          kg_picked: greenForm.kg ? parseFloat(greenForm.kg) : null,
+          what_picked: greenForm.what || '',
+        });
+        await loadGreenEntries();
+      }
       setEditDay(null);
     } catch (err) {
       setFormError(err.response?.data?.error || 'Failed to save');
@@ -130,7 +161,13 @@ export default function DaysScreen() {
     const date = formatDate(year, month, day);
     try {
       await api.delete(`/api/timesheet/entry/${date}`);
+      try {
+        await api.delete(`/api/green/entry/${date}T12:00:00.000Z`);
+      } catch {
+        // no green entry for this day - ignore
+      }
       await loadEntries();
+      await loadGreenEntries();
       setConfirmDeleteDay(null);
     } catch (err) {
       Alert.alert('Delete failed', err.response?.data?.error || 'Could not delete the entry. Please try again.');
@@ -194,9 +231,9 @@ export default function DaysScreen() {
                           <View style={[styles.badge, styles.badgeTotal]}>
                             <Text style={[styles.badgeText, styles.badgeTotalText]}>Total: {entry.total_hours}</Text>
                           </View>
-                          {!!entry.kg_picked && (
+                          {!!greenEntries[date]?.kg_picked && (
                             <View style={[styles.badge, styles.badgeKg]}>
-                              <Text style={[styles.badgeText, styles.badgeKgText]}>KG: {entry.kg_picked}</Text>
+                              <Text style={[styles.badgeText, styles.badgeKgText]}>KG: {greenEntries[date].kg_picked}</Text>
                             </View>
                           )}
                         </View>
@@ -292,19 +329,54 @@ export default function DaysScreen() {
                       />
                     </View>
 
-                    {BERRY_SEASON && (
+                    <View style={styles.greenSection}>
+                      <Text style={styles.greenSectionTitle}>Berry picking (Green paper)</Text>
+
                       <View style={styles.field}>
-                        <Text style={[styles.label, styles.kgLabel]}>Kg picked (optional)</Text>
+                        <Text style={styles.label}>Start time</Text>
                         <TextInput
                           style={styles.input}
-                          value={form.kg_picked}
-                          onChangeText={(text) => setForm((f) => ({ ...f, kg_picked: text }))}
+                          value={greenForm.start}
+                          onChangeText={(text) => setGreenForm((f) => ({ ...f, start: text }))}
+                          placeholder="HH:MM"
+                          placeholderTextColor={COLORS.textMuted}
+                        />
+                      </View>
+
+                      <View style={styles.field}>
+                        <Text style={styles.label}>Finish time</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={greenForm.finish}
+                          onChangeText={(text) => setGreenForm((f) => ({ ...f, finish: text }))}
+                          placeholder="HH:MM"
+                          placeholderTextColor={COLORS.textMuted}
+                        />
+                      </View>
+
+                      <View style={styles.field}>
+                        <Text style={styles.label}>Kg picked</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={greenForm.kg}
+                          onChangeText={(text) => setGreenForm((f) => ({ ...f, kg: text }))}
                           placeholder="e.g. 24.5"
                           placeholderTextColor={COLORS.textMuted}
                           keyboardType="decimal-pad"
                         />
                       </View>
-                    )}
+
+                      <View style={styles.field}>
+                        <Text style={styles.label}>What was picked</Text>
+                        <TextInput
+                          style={styles.input}
+                          value={greenForm.what}
+                          onChangeText={(text) => setGreenForm((f) => ({ ...f, what: text }))}
+                          placeholder="e.g. strawberries"
+                          placeholderTextColor={COLORS.textMuted}
+                        />
+                      </View>
+                    </View>
 
                     <View style={styles.formButtons}>
                       <Pressable
@@ -331,7 +403,16 @@ export default function DaysScreen() {
                   </View>
                 )}
 
-                {isViewing && hasEntry && <InlineDayView day={day} year={year} month={month} entry={entry} entries={entries} />}
+                {isViewing && hasEntry && (
+                  <InlineDayView
+                    day={day}
+                    year={year}
+                    month={month}
+                    entry={entry}
+                    entries={entries}
+                    greenEntries={greenEntries}
+                  />
+                )}
               </View>
             );
           }}
@@ -358,7 +439,7 @@ export default function DaysScreen() {
   );
 }
 
-function InlineDayView({ day, year, month, entry, entries }) {
+function InlineDayView({ day, year, month, entry, entries, greenEntries }) {
   return (
     <View style={styles.inlineView}>
       <Text style={styles.inlineTitle}>WHITE PAPER: WORK PAID BY THE HOUR</Text>
@@ -391,7 +472,7 @@ function InlineDayView({ day, year, month, entry, entries }) {
         GREEN PAPER: TIME USED FOR PICKUP (SALARY PAID BY KILOS)
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
-        <GreenPaperTable days={[day]} year={year} month={month} entries={entries} />
+        <GreenPaperTable days={[day]} year={year} month={month} greenEntries={greenEntries} />
       </ScrollView>
       <Text style={[styles.inlineItalic, { marginBottom: 0 }]}>HOX, NEED TO PICKUP 10 KILO PER HOUR!</Text>
     </View>
@@ -605,8 +686,19 @@ const styles = StyleSheet.create({
     color: COLORS.text,
     marginBottom: 4,
   },
-  kgLabel: {
+  greenSection: {
+    borderWidth: 1,
+    borderColor: COLORS.primary,
+    borderRadius: 8,
+    padding: 12,
+    gap: 10,
+  },
+  greenSectionTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 13,
     color: COLORS.primary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   input: {
     fontFamily: FONTS.regular,
