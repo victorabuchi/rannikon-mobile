@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -38,7 +39,7 @@ function parseLogs(wl) {
   return [];
 }
 
-function WorklogCard({ wl }) {
+function WorklogCard({ wl, onDelete }) {
   const [busy, setBusy] = useState(false);
   const logs = parseLogs(wl);
   const dateLabel = wl.session_date ? formatDateMedium(wl.session_date) : '—';
@@ -101,6 +102,9 @@ function WorklogCard({ wl }) {
               </Pressable>
               <Pressable style={styles.outlineButton} onPress={handleShare}>
                 <Text style={styles.outlineButtonText}>Share</Text>
+              </Pressable>
+              <Pressable style={[styles.actionButton, styles.deleteButton]} onPress={() => onDelete(wl.id)}>
+                <Text style={styles.deleteButtonText}>Delete</Text>
               </Pressable>
             </>
           )}
@@ -169,6 +173,7 @@ export default function HousemasterScreen() {
   const [worklogs, setWorklogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
   const loadWorklogs = useCallback(async () => {
     const { data } = await api.get('/api/admin/housemaster-worklogs');
@@ -199,6 +204,16 @@ export default function HousemasterScreen() {
       setRefreshing(false);
     }
   }, [loadWorklogs]);
+
+  const deleteWorklog = async (id) => {
+    try {
+      await api.delete(`/api/admin/housemaster-worklogs/${id}`);
+      setWorklogs((wls) => wls.filter((w) => w.id !== id));
+      setConfirmDeleteId(null);
+    } catch (err) {
+      Alert.alert('Delete failed', err.response?.data?.error || 'Could not delete the worklog. Please try again.');
+    }
+  };
 
   if (loading) {
     return (
@@ -234,9 +249,31 @@ export default function HousemasterScreen() {
             </Text>
           </View>
         ) : (
-          worklogs.map((wl) => <WorklogCard key={wl.id} wl={wl} />)
+          worklogs.map((wl) => <WorklogCard key={wl.id} wl={wl} onDelete={setConfirmDeleteId} />)
         )}
       </ScrollView>
+
+      <Modal
+        visible={confirmDeleteId != null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfirmDeleteId(null)}
+      >
+        <View style={styles.confirmOverlay}>
+          <View style={styles.confirmCard}>
+            <Text style={styles.confirmTitle}>Delete worklog?</Text>
+            <Text style={styles.confirmText}>This will permanently remove this worklog.</Text>
+            <View style={styles.confirmButtons}>
+              <Pressable style={styles.confirmCancelButton} onPress={() => setConfirmDeleteId(null)}>
+                <Text style={styles.confirmCancelText}>Cancel</Text>
+              </Pressable>
+              <Pressable style={styles.confirmDeleteButton} onPress={() => deleteWorklog(confirmDeleteId)}>
+                <Text style={styles.confirmDeleteText}>Delete</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -403,5 +440,80 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.regular,
     fontSize: 12,
     color: '#555555',
+  },
+  actionButton: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  deleteButton: {
+    backgroundColor: '#fdecea',
+    borderWidth: 1,
+    borderColor: '#ffc1c0',
+  },
+  deleteButtonText: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: '#c0392b',
+  },
+  confirmOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  confirmCard: {
+    backgroundColor: COLORS.background,
+    borderRadius: 12,
+    paddingVertical: 28,
+    paddingHorizontal: 32,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+  },
+  confirmTitle: {
+    fontFamily: FONTS.bold,
+    fontSize: 17,
+    color: COLORS.text,
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  confirmText: {
+    fontFamily: FONTS.regular,
+    fontSize: 14,
+    color: '#666666',
+    lineHeight: 20,
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  confirmButtons: {
+    flexDirection: 'row',
+    gap: 10,
+    justifyContent: 'center',
+  },
+  confirmCancelButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dddddd',
+    backgroundColor: COLORS.background,
+  },
+  confirmCancelText: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  confirmDeleteButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: '#c0392b',
+  },
+  confirmDeleteText: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.white,
   },
 });
