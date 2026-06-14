@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { formatDate } from '../lib/dates';
-import { hasOrangeWork, minsToHHMM, parseHoursToMinutes } from '../lib/timesheet';
+import { blankIfZeroHours, hasOrangeWork, minsToHHMM, parseHoursToMinutes } from '../lib/timesheet';
 import { COLORS, FONTS } from '../lib/theme';
 
 export const COL = {
@@ -249,7 +249,7 @@ export function OrangePaperTable({ days, year, month, entries, editable = false,
               onSave={(v) => onSave(date, 'orange_finish', v)}
               style={cellStyle}
             />
-            <Cell width={COL.breakCol} text={hasOrange ? entry.orange_break || '0:00' : ''} style={cellStyle} />
+            <Cell width={COL.breakCol} text={hasOrange ? blankIfZeroHours(entry.orange_break) : ''} style={cellStyle} />
             <EditableCell
               width={COL.hours}
               value={hasOrange ? entry.orange_hours : ''}
@@ -543,7 +543,7 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntr
                     <EditableCell
                       key={i}
                       width={COL.day}
-                      value={entry.orange_hours}
+                      value={blankIfZeroHours(entry.orange_hours)}
                       editable
                       onSave={(v) => onSave(date, 'orange_hours', v)}
                       keyboardType="decimal-pad"
