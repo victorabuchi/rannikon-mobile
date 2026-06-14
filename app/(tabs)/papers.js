@@ -238,6 +238,7 @@ export default function PapersScreen() {
                   month={month}
                   daysInMonth={daysInMonth}
                   entries={entries}
+                  greenEntries={greenEntries}
                   onSave={handleFieldSave}
                 />
               </ScrollView>

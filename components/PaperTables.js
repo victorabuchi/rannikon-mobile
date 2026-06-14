@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { formatDate } from '../lib/dates';
-import { minsToHHMM, parseHoursToMinutes } from '../lib/timesheet';
+import { hasOrangeWork, minsToHHMM, parseHoursToMinutes } from '../lib/timesheet';
 import { COLORS, FONTS } from '../lib/theme';
 
 export const COL = {
@@ -231,38 +231,38 @@ export function OrangePaperTable({ days, year, month, entries, editable = false,
       {days.map((day) => {
         const date = formatDate(year, month, day);
         const entry = entries[date];
-        const hasEntry = !!entry;
+        const hasOrange = hasOrangeWork(entry);
         return (
           <View key={date} style={styles.row}>
             <Cell width={COL.date} text={String(day)} textStyle={styles.bold} style={cellStyle} />
             <EditableCell
               width={COL.time}
-              value={entry?.orange_start?.slice(0, 5)}
-              editable={editable && hasEntry}
+              value={hasOrange ? entry.orange_start?.slice(0, 5) : ''}
+              editable={editable && hasOrange}
               onSave={(v) => onSave(date, 'orange_start', v)}
               style={cellStyle}
             />
             <EditableCell
               width={COL.time}
-              value={entry?.orange_finish?.slice(0, 5)}
-              editable={editable && hasEntry}
+              value={hasOrange ? entry.orange_finish?.slice(0, 5) : ''}
+              editable={editable && hasOrange}
               onSave={(v) => onSave(date, 'orange_finish', v)}
               style={cellStyle}
             />
-            <Cell width={COL.breakCol} text={hasEntry ? entry.orange_break || '0:00' : ''} style={cellStyle} />
+            <Cell width={COL.breakCol} text={hasOrange ? entry.orange_break || '0:00' : ''} style={cellStyle} />
             <EditableCell
               width={COL.hours}
-              value={entry?.orange_hours}
-              editable={editable && hasEntry}
+              value={hasOrange ? entry.orange_hours : ''}
+              editable={editable && hasOrange}
               onSave={(v) => onSave(date, 'orange_hours', v)}
               keyboardType="decimal-pad"
-              textStyle={hasEntry && { fontWeight: '700', color: '#b45309' }}
+              textStyle={hasOrange && { fontWeight: '700', color: '#b45309' }}
               style={cellStyle}
             />
             <EditableCell
               width={COL.work}
-              value={entry?.what_work}
-              editable={editable && hasEntry}
+              value={hasOrange ? entry.what_work : ''}
+              editable={editable && hasOrange}
               onSave={(v) => onSave(date, 'what_work', v)}
               align="left"
               style={cellStyle}
@@ -377,7 +377,7 @@ function InlineWeekRow({ label, value, valueColor, border, highlight }) {
 
 // The full Weekly Summary on the Papers tab — pickup/working/extra rows with
 // editable hours, plus a signature row, mirroring PapersFullView's weekly tab.
-export function WeeklySummaryFull({ year, month, daysInMonth, entries, onSave }) {
+export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntries, onSave }) {
   const weeks = getWeekChunks(year, month, daysInMonth);
   const border = { borderColor: '#333333' };
   const totalWidth = COL.type + COL.day * 7 + COL.total;
@@ -387,12 +387,17 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, onSave })
       {weeks.map((weekDays, weekIdx) => {
         let totalWorking = 0;
         let totalExtra = 0;
+        let totalKg = 0;
         weekDays.forEach((info) => {
           if (!info.exists || info.isSun) return;
-          const entry = entries[formatDate(year, month, info.day)];
-          if (!entry) return;
-          totalWorking += parseHoursToMinutes(entry.white_hours);
-          totalExtra += parseHoursToMinutes(entry.orange_hours);
+          const date = formatDate(year, month, info.day);
+          const entry = entries[date];
+          if (entry) {
+            totalWorking += parseHoursToMinutes(entry.white_hours);
+            totalExtra += parseHoursToMinutes(entry.orange_hours);
+          }
+          const ge = greenEntries?.[date];
+          if (ge?.kg_picked != null) totalKg += Number(ge.kg_picked) || 0;
         });
 
         return (
@@ -417,24 +422,38 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, onSave })
               <View style={styles.row}>
                 <Cell
                   width={COL.type}
-                  text="pickup hours"
+                  text="Berry picking (kg)"
                   align="left"
                   textStyle={{ fontWeight: '700', color: '#2d6a2d' }}
                   style={{ borderColor: '#2d6a2d', backgroundColor: '#e8f5e9' }}
                 />
-                {weekDays.map((info, i) => (
-                  <Cell
-                    key={i}
-                    width={COL.day}
-                    text={info.isSun ? 'X' : ''}
-                    textStyle={{ fontWeight: '700', color: info.isSun ? '#bbbbbb' : '#2d6a2d' }}
-                    style={{ borderColor: '#2d6a2d', backgroundColor: '#e8f5e9' }}
-                  />
-                ))}
+                {weekDays.map((info, i) => {
+                  if (info.isSun) {
+                    return (
+                      <Cell
+                        key={i}
+                        width={COL.day}
+                        text="X"
+                        textStyle={{ fontWeight: '700', color: '#bbbbbb' }}
+                        style={{ borderColor: '#2d6a2d', backgroundColor: '#e8f5e9' }}
+                      />
+                    );
+                  }
+                  const ge = greenEntries?.[formatDate(year, month, info.day)];
+                  return (
+                    <Cell
+                      key={i}
+                      width={COL.day}
+                      text={ge?.kg_picked != null ? String(ge.kg_picked) : ''}
+                      textStyle={{ fontWeight: '700', color: '#2d6a2d' }}
+                      style={{ borderColor: '#2d6a2d', backgroundColor: '#e8f5e9' }}
+                    />
+                  );
+                })}
                 <Cell
                   width={COL.total}
-                  text=""
-                  sub="max 40"
+                  text={totalKg > 0 ? String(Math.round(totalKg * 100) / 100) : ''}
+                  sub="kg"
                   textStyle={{ fontWeight: '700', color: '#2d6a2d' }}
                   style={{ borderColor: '#2d6a2d', backgroundColor: '#e8f5e9' }}
                 />

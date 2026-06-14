@@ -360,7 +360,7 @@ export default function DaysScreen() {
                           style={styles.input}
                           value={greenForm.kg}
                           onChangeText={(text) => setGreenForm((f) => ({ ...f, kg: text }))}
-                          placeholder="e.g. 24.5"
+                          placeholder="e.g. strawberries weight"
                           placeholderTextColor={COLORS.textMuted}
                           keyboardType="decimal-pad"
                         />
