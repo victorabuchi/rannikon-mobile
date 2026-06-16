@@ -19,20 +19,22 @@ import api from '../../lib/api';
 import { useAuth } from '../../lib/auth';
 import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
 import { exportPaperExcel, exportPaperPdf } from '../../lib/exporters';
+import { useLanguage } from '../../lib/i18n';
 import { COLORS, FONTS } from '../../lib/theme';
 import { computeEntry } from '../../lib/timesheet';
 
 const PAPER_TYPES = [
-  { key: 'white', label: 'White Paper', sub: 'Work paid by hour' },
-  { key: 'orange', label: 'Orange Paper', sub: 'Extrawork' },
-  { key: 'weekly', label: 'Weekly Summary', sub: 'Mon to Sun totals' },
-  { key: 'green', label: 'Green Paper', sub: 'Berry picking' },
+  { key: 'white', labelKey: 'papers.whitePaper', subKey: 'papers.workPaidByHourSub' },
+  { key: 'orange', labelKey: 'papers.orangePaper', subKey: 'papers.extraworkSub' },
+  { key: 'weekly', labelKey: 'papers.weeklySummary', subKey: 'papers.monToSunSub' },
+  { key: 'green', labelKey: 'papers.greenPaper', subKey: 'papers.berryPickingSub' },
 ];
 
 function WorkerInfo({ worker }) {
+  const { t } = useLanguage();
   return (
     <Text style={styles.workerInfo}>
-      Name: <Text style={styles.bold}>{worker?.full_name || '-'}</Text>     Work number:{' '}
+      {t('papers.name')}: <Text style={styles.bold}>{worker?.full_name || '-'}</Text>     {t('papers.workNumber')}:{' '}
       <Text style={styles.bold}>{worker?.work_number || '-'}</Text>
     </Text>
   );
@@ -40,6 +42,7 @@ function WorkerInfo({ worker }) {
 
 export default function PapersScreen() {
   const { worker } = useAuth();
+  const { t } = useLanguage();
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [year, setYear] = useState(today.getFullYear());
@@ -60,7 +63,7 @@ export default function PapersScreen() {
       });
       setEntries(map);
     } catch {
-      setError('Could not load timesheet entries.');
+      setError(t('papers.loadError'));
     } finally {
       setLoading(false);
     }
@@ -128,7 +131,7 @@ export default function PapersScreen() {
     try {
       await exportPaperPdf(paperType, { month, year, worker, entries, greenEntries, daysInMonth });
     } catch {
-      Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
+      Alert.alert(t('common.exportFailed'), t('common.exportPdfError'));
     } finally {
       setExporting(false);
     }
@@ -139,7 +142,7 @@ export default function PapersScreen() {
     try {
       await exportPaperExcel(paperType, { month, year, worker, entries, greenEntries, daysInMonth });
     } catch {
-      Alert.alert('Export failed', 'Could not generate the Excel file. Please try again.');
+      Alert.alert(t('common.exportFailed'), t('common.exportExcelError'));
     } finally {
       setExporting(false);
     }
@@ -167,10 +170,10 @@ export default function PapersScreen() {
             onPress={() => setPaperType(p.key)}
           >
             <Text style={[styles.selectorText, paperType === p.key && styles.selectorTextActive]}>
-              {p.label}
+              {t(p.labelKey)}
             </Text>
             <Text style={[styles.selectorSub, paperType === p.key && styles.selectorSubActive]}>
-              {p.sub}
+              {t(p.subKey)}
             </Text>
           </Pressable>
         ))}
@@ -184,8 +187,8 @@ export default function PapersScreen() {
         <ScrollView contentContainerStyle={styles.paperContainer}>
           {paperType === 'white' && (
             <View>
-              <Text style={styles.title}>WORK PAID BY THE HOUR</Text>
-              <Text style={styles.subtitle}>8 HOURS PER DAY / 40 HOURS PER WEEK</Text>
+              <Text style={styles.title}>{t('papers.workPaidByHour')}</Text>
+              <Text style={styles.subtitle}>{t('papers.hoursPerDayWeek')}</Text>
               <WorkerInfo worker={worker} />
               <ScrollView horizontal showsHorizontalScrollIndicator style={styles.table}>
                 <WhitePaperTable
@@ -197,20 +200,16 @@ export default function PapersScreen() {
                   onSave={handleFieldSave}
                 />
               </ScrollView>
-              <Text style={styles.footerItalic}>
-                When you have worked 4 hours, You need to have an eating break, minimum of 30 mins.
-              </Text>
-              <Text style={styles.footerItalic}>
-                START WORK 9:00, 9:15, 9:30 or 9:45. WORK DOES NOT START 9:05, 9:10, 9:20, 9:25 etc.
-              </Text>
+              <Text style={styles.footerItalic}>{t('papers.eatingBreakShort')}</Text>
+              <Text style={styles.footerItalic}>{t('papers.startWorkCaps')}</Text>
             </View>
           )}
 
           {paperType === 'orange' && (
             <View>
-              <Text style={[styles.title, { color: '#b45309' }]}>EXTRAWORK PAID BY THE HOUR</Text>
-              <Text style={styles.subtitle}>MAXIMUM 3 HOURS PER DAY (MONDAY-FRIDAY)</Text>
-              <Text style={styles.subtitle}>MAXIMUM 11 HOURS PER DAY (SATURDAY)</Text>
+              <Text style={[styles.title, { color: '#b45309' }]}>{t('papers.extraWorkPaidByHour')}</Text>
+              <Text style={styles.subtitle}>{t('papers.maxHoursWeekday')}</Text>
+              <Text style={styles.subtitle}>{t('papers.maxHoursSaturday')}</Text>
               <WorkerInfo worker={worker} />
               <ScrollView horizontal showsHorizontalScrollIndicator style={styles.table}>
                 <OrangePaperTable
@@ -222,15 +221,13 @@ export default function PapersScreen() {
                   onSave={handleFieldSave}
                 />
               </ScrollView>
-              <Text style={styles.footerItalic}>
-                Start work 9:00, 9:15, 9:30 or 9:45. Work does not start 9:05, 9:10, 9:20, 9:25 etc.
-              </Text>
+              <Text style={styles.footerItalic}>{t('papers.startWorkNote')}</Text>
             </View>
           )}
 
           {paperType === 'weekly' && (
             <View>
-              <Text style={[styles.title, { color: '#1565c0' }]}>WEEKLY SUMMARY</Text>
+              <Text style={[styles.title, { color: '#1565c0' }]}>{t('papers.weeklySummaryTitle')}</Text>
               <WorkerInfo worker={worker} />
               <ScrollView horizontal showsHorizontalScrollIndicator style={styles.table}>
                 <WeeklySummaryFull
@@ -247,13 +244,9 @@ export default function PapersScreen() {
 
           {paperType === 'green' && (
             <View>
-              <Text style={[styles.title, { color: '#2d6a2d' }]}>
-                TIME USED FOR PICKUP, SALARY IS PAID BY KILOS
-              </Text>
-              <Text style={styles.subtitle}>8 HOURS PER DAY / 40 HOURS PER WEEK</Text>
-              <Text style={[styles.subtitle, { color: '#c0392b' }]}>
-                HOX, NEED TO PICKUP 10 KILO PER HOUR!
-              </Text>
+              <Text style={[styles.title, { color: '#2d6a2d' }]}>{t('papers.greenPaperTitle')}</Text>
+              <Text style={styles.subtitle}>{t('papers.hoursPerDayWeek')}</Text>
+              <Text style={[styles.subtitle, { color: '#c0392b' }]}>{t('papers.kiloPerHourNote')}</Text>
               <WorkerInfo worker={worker} />
               <ScrollView horizontal showsHorizontalScrollIndicator style={styles.table}>
                 <GreenPaperTable
@@ -265,12 +258,8 @@ export default function PapersScreen() {
                   onSave={handleGreenFieldSave}
                 />
               </ScrollView>
-              <Text style={styles.footerItalic}>
-                When you have worked 4 hours, You need to have an eating break, minimum of 30 mins.
-              </Text>
-              <Text style={styles.footerItalic}>
-                START WORK 9:00, 9:15, 9:30 or 9:45. WORK DOES NOT START 9:05, 9:10, 9:20, 9:25 etc.
-              </Text>
+              <Text style={styles.footerItalic}>{t('papers.eatingBreakShort')}</Text>
+              <Text style={styles.footerItalic}>{t('papers.startWorkCaps')}</Text>
             </View>
           )}
 
@@ -283,7 +272,7 @@ export default function PapersScreen() {
               <View style={[styles.iconBox, { backgroundColor: '#E53935' }]}>
                 <Text style={styles.iconText}>PDF</Text>
               </View>
-              <Text style={styles.downloadButtonText}>Download PDF</Text>
+              <Text style={styles.downloadButtonText}>{t('common.downloadPDF')}</Text>
             </Pressable>
             <Pressable
               style={({ pressed }) => [styles.downloadButton, pressed && styles.downloadButtonPressed]}
@@ -293,7 +282,7 @@ export default function PapersScreen() {
               <View style={[styles.iconBox, { backgroundColor: '#217346' }]}>
                 <Text style={styles.iconText}>XLS</Text>
               </View>
-              <Text style={styles.downloadButtonText}>Download Excel</Text>
+              <Text style={styles.downloadButtonText}>{t('common.downloadExcel')}</Text>
             </Pressable>
             {exporting && <ActivityIndicator size="small" color={COLORS.primary} />}
           </View>

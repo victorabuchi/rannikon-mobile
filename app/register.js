@@ -11,12 +11,15 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 
+import LanguageSelector from '../components/LanguageSelector';
 import api from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { useLanguage } from '../lib/i18n';
 import { COLORS, FONTS } from '../lib/theme';
 
 export default function RegisterScreen() {
   const { signIn } = useAuth();
+  const { t } = useLanguage();
   const [fullName, setFullName] = useState('');
   const [workNumber, setWorkNumber] = useState('');
   const [email, setEmail] = useState('');
@@ -32,12 +35,12 @@ export default function RegisterScreen() {
       !email.trim() ||
       !password
     ) {
-      setError('Please fill in all fields.');
+      setError(t('register.fillAllFields'));
       return;
     }
 
     if (password !== confirmPassword) {
-      setError('Passwords do not match.');
+      setError(t('register.passwordsDoNotMatch'));
       return;
     }
 
@@ -54,8 +57,7 @@ export default function RegisterScreen() {
       await signIn(data.token, data.worker);
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          'Could not create your account. Please try again.'
+        err.response?.data?.message || t('register.registerError')
       );
     } finally {
       setSubmitting(false);
@@ -67,40 +69,43 @@ export default function RegisterScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <View style={styles.langBar}>
+        <LanguageSelector />
+      </View>
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Rannikon</Text>
-        <Text style={styles.subtitle}>Create your account</Text>
+        <Text style={styles.title}>{t('auth.appName')}</Text>
+        <Text style={styles.subtitle}>{t('register.createAccountSubtitle')}</Text>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Full name</Text>
+          <Text style={styles.label}>{t('register.fullName')}</Text>
           <TextInput
             style={styles.input}
             value={fullName}
             onChangeText={setFullName}
             autoCapitalize="words"
-            placeholder="Jane Smith"
+            placeholder={t('register.fullNamePlaceholder')}
             placeholderTextColor={COLORS.textMuted}
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Work number</Text>
+          <Text style={styles.label}>{t('register.workNumber')}</Text>
           <TextInput
             style={styles.input}
             value={workNumber}
             onChangeText={setWorkNumber}
             autoCapitalize="none"
             autoCorrect={false}
-            placeholder="e.g. 12345"
+            placeholder={t('register.workNumberPlaceholder')}
             placeholderTextColor={COLORS.textMuted}
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('register.email')}</Text>
           <TextInput
             style={styles.input}
             value={email}
@@ -108,31 +113,31 @@ export default function RegisterScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
-            placeholder="you@example.com"
+            placeholder={t('register.emailPlaceholder')}
             placeholderTextColor={COLORS.textMuted}
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('register.password')}</Text>
           <TextInput
             style={styles.input}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder="Password"
+            placeholder={t('register.password')}
             placeholderTextColor={COLORS.textMuted}
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Confirm password</Text>
+          <Text style={styles.label}>{t('register.confirmPassword')}</Text>
           <TextInput
             style={styles.input}
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
-            placeholder="Confirm password"
+            placeholder={t('register.confirmPassword')}
             placeholderTextColor={COLORS.textMuted}
           />
         </View>
@@ -149,14 +154,14 @@ export default function RegisterScreen() {
           disabled={submitting}
         >
           <Text style={styles.buttonText}>
-            {submitting ? 'Creating account...' : 'Create account'}
+            {submitting ? t('register.creatingAccount') : t('register.createAccount')}
           </Text>
         </Pressable>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Already have an account? </Text>
+          <Text style={styles.footerText}>{t('register.alreadyHaveAccount')}</Text>
           <Link href="/login" style={styles.link}>
-            Sign in
+            {t('register.signInLink')}
           </Link>
         </View>
       </ScrollView>
@@ -168,6 +173,12 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  langBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   container: {
     flexGrow: 1,

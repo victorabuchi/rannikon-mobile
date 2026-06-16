@@ -19,40 +19,49 @@ import { GroupPill, RoleBadge, StatCard } from '../../components/Badges';
 import api from '../../lib/api';
 import { addDaysToISODate, formatDateMedium, formatDateShort, todayISODate } from '../../lib/dates';
 import { HOUSE_GROUPS } from '../../lib/houseGroups';
+import { useLanguage } from '../../lib/i18n';
 import { COLORS, FONTS } from '../../lib/theme';
 
 const ROLE_OPTIONS = ['worker', 'supervisor', 'housemaster', 'admin'];
 
+const ROLE_LABEL_KEY = {
+  worker: 'admin.roleWorker',
+  supervisor: 'admin.roleSupervisor',
+  housemaster: 'admin.roleHousemaster',
+  admin: 'admin.roleAdmin',
+};
+
 const WORKERS_HEADERS = [
-  { key: 'work', label: 'Work#', width: 56 },
-  { key: 'name', label: 'Name', width: 110 },
-  { key: 'email', label: 'Email', width: 160 },
-  { key: 'role', label: 'Role', width: 100 },
-  { key: 'group', label: 'Group', width: 140 },
-  { key: 'status', label: 'Status', width: 70 },
-  { key: 'actions', label: 'Actions', width: 110 },
+  { key: 'work', labelKey: 'admin.colWorkNum', width: 56 },
+  { key: 'name', labelKey: 'admin.colName', width: 110 },
+  { key: 'email', labelKey: 'admin.colEmail', width: 160 },
+  { key: 'role', labelKey: 'admin.colRole', width: 100 },
+  { key: 'group', labelKey: 'admin.colGroup', width: 140 },
+  { key: 'status', labelKey: 'admin.colStatus', width: 70 },
+  { key: 'actions', labelKey: 'admin.colActions', width: 110 },
 ];
 
 const LOGS_HEADERS = [
-  { key: 'work', label: 'Work#', width: 56 },
-  { key: 'name', label: 'Name', width: 110 },
-  { key: 'start', label: 'Start', width: 60 },
-  { key: 'finish', label: 'Finish', width: 60 },
-  { key: 'break', label: 'Break', width: 64 },
-  { key: 'total', label: 'Total hrs', width: 70 },
-  { key: 'workdone', label: 'Work done', width: 150 },
+  { key: 'work', labelKey: 'admin.colWorkNum', width: 56 },
+  { key: 'name', labelKey: 'admin.colName', width: 110 },
+  { key: 'start', labelKey: 'admin.colStart', width: 60 },
+  { key: 'finish', labelKey: 'admin.colFinish', width: 60 },
+  { key: 'break', labelKey: 'admin.colBreak', width: 64 },
+  { key: 'total', labelKey: 'admin.colTotalHrs', width: 70 },
+  { key: 'workdone', labelKey: 'admin.colWorkDone', width: 150 },
 ];
 
 const INVITATIONS_HEADERS = [
-  { key: 'email', label: 'Email', width: 170 },
-  { key: 'work', label: 'Work#', width: 60 },
-  { key: 'role', label: 'Role', width: 90 },
-  { key: 'invitedby', label: 'Invited by', width: 120 },
-  { key: 'created', label: 'Created', width: 90 },
-  { key: 'status', label: 'Status', width: 80 },
+  { key: 'email', labelKey: 'admin.colEmail', width: 170 },
+  { key: 'work', labelKey: 'admin.colWorkNum', width: 60 },
+  { key: 'role', labelKey: 'admin.colRole', width: 90 },
+  { key: 'invitedby', labelKey: 'admin.colInvitedBy', width: 120 },
+  { key: 'created', labelKey: 'admin.colCreated', width: 90 },
+  { key: 'status', labelKey: 'admin.colStatus', width: 80 },
 ];
 
 export default function AdminScreen() {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [tab, setTab] = useState('workers');
@@ -141,10 +150,10 @@ export default function AdminScreen() {
     setRefreshing(false);
   }, [tab, logsDate]);
 
-  const handleTabChange = (t) => {
-    setTab(t);
-    if (t === 'logs' && Object.keys(grouped).length === 0) loadLogs(logsDate);
-    if (t === 'invitations' && invitations.length === 0) loadInvitations();
+  const handleTabChange = (key) => {
+    setTab(key);
+    if (key === 'logs' && Object.keys(grouped).length === 0) loadLogs(logsDate);
+    if (key === 'invitations' && invitations.length === 0) loadInvitations();
   };
 
   const updateWorker = async (id, patch) => {
@@ -163,11 +172,11 @@ export default function AdminScreen() {
   const sendInvite = async () => {
     setInviteError('');
     if (!inviteForm.role) {
-      setInviteError('Role is required');
+      setInviteError(t('admin.roleRequired'));
       return;
     }
     if (!inviteForm.email && !inviteForm.work_number) {
-      setInviteError('Email or work number is required');
+      setInviteError(t('admin.emailOrWorkNumberRequired'));
       return;
     }
     setInviteSaving(true);
@@ -177,7 +186,7 @@ export default function AdminScreen() {
       const { data } = await api.post('/api/admin/invite', body);
       setInviteUrl(data.register_url || '');
     } catch (e) {
-      setInviteError(e.response?.data?.error || 'Failed to send invitation');
+      setInviteError(e.response?.data?.error || t('admin.failedToSendInvitation'));
     } finally {
       setInviteSaving(false);
     }
@@ -198,7 +207,7 @@ export default function AdminScreen() {
       await api.post('/api/admin/send-to-housemaster', { house_group: group, date: logsDate, logs: rows });
       setSentGroups((s) => ({ ...s, [group]: true }));
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Failed to send');
+      Alert.alert(t('common.error'), e.response?.data?.error || t('admin.failedToSend'));
     } finally {
       setSendingGroup('');
     }
@@ -236,8 +245,8 @@ export default function AdminScreen() {
       >
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.title}>Admin panel</Text>
-            <Text style={styles.subtitle}>Manage workers, view logs, send invitations</Text>
+            <Text style={styles.title}>{t('admin.panel')}</Text>
+            <Text style={styles.subtitle}>{t('admin.subtitle')}</Text>
           </View>
           <Pressable
             style={styles.primaryButtonSmall}
@@ -247,32 +256,32 @@ export default function AdminScreen() {
               setShowInvite(true);
             }}
           >
-            <Text style={styles.primaryButtonSmallText}>+ Invite</Text>
+            <Text style={styles.primaryButtonSmallText}>{t('admin.invite')}</Text>
           </Pressable>
         </View>
 
         {stats && (
           <View style={styles.statsRow}>
-            <StatCard label="Total workers" value={stats.total_workers} />
-            <StatCard label="Active" value={stats.active_workers} accent={COLORS.primary} />
-            <StatCard label="Supervisors" value={stats.total_supervisors} accent="#1565c0" />
-            <StatCard label="Housemasters" value={stats.total_housemasters} accent="#7b1fa2" />
-            <StatCard label="Entries today" value={stats.entries_today} accent="#b45309" />
+            <StatCard label={t('admin.totalWorkers')} value={stats.total_workers} />
+            <StatCard label={t('admin.active')} value={stats.active_workers} accent={COLORS.primary} />
+            <StatCard label={t('admin.supervisors')} value={stats.total_supervisors} accent="#1565c0" />
+            <StatCard label={t('admin.housemasters')} value={stats.total_housemasters} accent="#7b1fa2" />
+            <StatCard label={t('admin.entriesToday')} value={stats.entries_today} accent="#b45309" />
           </View>
         )}
 
         <View style={styles.tabRow}>
           {[
-            ['workers', 'Workers'],
-            ['logs', 'Supervisor Logs'],
-            ['invitations', 'Invitations'],
-          ].map(([t, l]) => (
+            ['workers', 'admin.tabWorkers'],
+            ['logs', 'admin.tabLogs'],
+            ['invitations', 'admin.tabInvitations'],
+          ].map(([key, labelKey]) => (
             <Pressable
-              key={t}
-              style={[styles.tabButton, tab === t && styles.tabButtonActive]}
-              onPress={() => handleTabChange(t)}
+              key={key}
+              style={[styles.tabButton, tab === key && styles.tabButtonActive]}
+              onPress={() => handleTabChange(key)}
             >
-              <Text style={[styles.tabText, tab === t && styles.tabTextActive]}>{l}</Text>
+              <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{t(labelKey)}</Text>
             </Pressable>
           ))}
         </View>
@@ -282,22 +291,22 @@ export default function AdminScreen() {
             <View style={styles.searchRow}>
               <TextInput
                 style={[styles.input, styles.searchInput]}
-                placeholder="Search by name, work number, or email..."
+                placeholder={t('admin.searchPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 value={search}
                 onChangeText={setSearch}
               />
-              <Text style={styles.shownText}>{filteredWorkers.length} shown</Text>
+              <Text style={styles.shownText}>{filteredWorkers.length} {t('admin.shown')}</Text>
             </View>
             {filteredWorkers.length === 0 ? (
-              <Text style={styles.emptyTableText}>No workers found</Text>
+              <Text style={styles.emptyTableText}>{t('admin.noWorkersFound')}</Text>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator>
                 <View>
                   <View style={styles.tableHeaderRow}>
                     {WORKERS_HEADERS.map((h) => (
                       <View key={h.key} style={[styles.th, { width: h.width }]}>
-                        <Text style={styles.thText}>{h.label}</Text>
+                        <Text style={styles.thText}>{t(h.labelKey)}</Text>
                       </View>
                     ))}
                   </View>
@@ -335,7 +344,7 @@ export default function AdminScreen() {
                               { color: w.is_active ? COLORS.primary : '#c0392b' },
                             ]}
                           >
-                            {w.is_active ? 'Active' : 'Inactive'}
+                            {w.is_active ? t('admin.active') : t('admin.inactive')}
                           </Text>
                         </View>
                       </View>
@@ -354,7 +363,7 @@ export default function AdminScreen() {
                               { color: w.is_active ? '#c0392b' : COLORS.primary },
                             ]}
                           >
-                            {w.is_active ? 'Deactivate' : 'Activate'}
+                            {w.is_active ? t('admin.deactivate') : t('admin.activate')}
                           </Text>
                         </Pressable>
                       </View>
@@ -373,18 +382,18 @@ export default function AdminScreen() {
                 <Text style={styles.dateNavText}>‹</Text>
               </Pressable>
               <View style={styles.dateDisplay}>
-                <Text style={styles.label}>Date</Text>
+                <Text style={styles.label}>{t('admin.date')}</Text>
                 <Text style={styles.dateValue}>{formatDateMedium(logsDate)}</Text>
               </View>
               <Pressable style={styles.dateNavButton} onPress={() => changeLogsDate(1)}>
                 <Text style={styles.dateNavText}>›</Text>
               </Pressable>
               <Pressable style={styles.outlineButton} onPress={() => loadLogs(logsDate)}>
-                <Text style={styles.outlineButtonText}>Reload</Text>
+                <Text style={styles.outlineButtonText}>{t('admin.reload')}</Text>
               </Pressable>
             </View>
 
-            {logsLoading && <Text style={styles.loadingText}>Loading...</Text>}
+            {logsLoading && <Text style={styles.loadingText}>{t('common.loading')}</Text>}
 
             {!logsLoading &&
               HOUSE_GROUPS.map((group) => {
@@ -397,12 +406,12 @@ export default function AdminScreen() {
                       <View style={styles.groupHeaderLeft}>
                         <GroupPill group={group} />
                         <Text style={styles.groupCount}>
-                          {rows.length} worker{rows.length !== 1 ? 's' : ''}
+                          {rows.length} {rows.length !== 1 ? t('admin.workers') : t('admin.worker')}
                         </Text>
                       </View>
                       {isSent ? (
                         <View style={styles.sentBadge}>
-                          <Text style={styles.sentBadgeText}>Sent</Text>
+                          <Text style={styles.sentBadgeText}>{t('common.sent')}</Text>
                         </View>
                       ) : rows.length > 0 ? (
                         <Pressable
@@ -411,20 +420,20 @@ export default function AdminScreen() {
                           disabled={isSending}
                         >
                           <Text style={styles.primaryButtonSmallText}>
-                            {isSending ? 'Sending...' : 'Send to housemaster'}
+                            {isSending ? t('admin.sending') : t('admin.sendToHousemaster')}
                           </Text>
                         </Pressable>
                       ) : null}
                     </View>
                     {rows.length === 0 ? (
-                      <Text style={styles.emptyGroupText}>No logs for this group</Text>
+                      <Text style={styles.emptyGroupText}>{t('admin.noLogsForGroup')}</Text>
                     ) : (
                       <ScrollView horizontal showsHorizontalScrollIndicator>
                         <View>
                           <View style={styles.tableHeaderRow}>
                             {LOGS_HEADERS.map((h) => (
                               <View key={h.key} style={[styles.th, { width: h.width }]}>
-                                <Text style={styles.thText}>{h.label}</Text>
+                                <Text style={styles.thText}>{t(h.labelKey)}</Text>
                               </View>
                             ))}
                           </View>
@@ -438,7 +447,7 @@ export default function AdminScreen() {
                               </View>
                               <View style={[styles.td, { width: LOGS_HEADERS[1].width }]}>
                                 <Text style={r.worker_name ? styles.tdText : styles.tdMuted} numberOfLines={1}>
-                                  {r.worker_name || 'Unknown'}
+                                  {r.worker_name || t('common.unknown')}
                                 </Text>
                               </View>
                               <View style={[styles.td, { width: LOGS_HEADERS[2].width }]}>
@@ -446,12 +455,12 @@ export default function AdminScreen() {
                               </View>
                               <View style={[styles.td, { width: LOGS_HEADERS[3].width }]}>
                                 <Text style={r.finish_time ? styles.tdMono : styles.tdMuted}>
-                                  {r.finish_time?.slice(0, 5) || 'pending'}
+                                  {r.finish_time?.slice(0, 5) || t('common.pending')}
                                 </Text>
                               </View>
                               <View style={[styles.td, { width: LOGS_HEADERS[4].width }]}>
                                 <Text style={styles.tdBreak}>
-                                  {r.total_break_mins > 0 ? `${r.total_break_mins} min` : ''}
+                                  {r.total_break_mins > 0 ? `${r.total_break_mins} ${t('sup.min')}` : ''}
                                 </Text>
                               </View>
                               <View style={[styles.td, { width: LOGS_HEADERS[5].width }]}>
@@ -476,22 +485,22 @@ export default function AdminScreen() {
         {tab === 'invitations' && (
           <View style={[styles.card, styles.tableCard]}>
             <View style={styles.invitationsHeader}>
-              <Text style={styles.cardTitle}>Pending invitations</Text>
+              <Text style={styles.cardTitle}>{t('admin.pendingInvitations')}</Text>
               <Pressable style={styles.outlineButton} onPress={loadInvitations}>
-                <Text style={styles.outlineButtonText}>Refresh</Text>
+                <Text style={styles.outlineButtonText}>{t('common.refresh')}</Text>
               </Pressable>
             </View>
             {invLoading ? (
-              <Text style={styles.emptyTableText}>Loading...</Text>
+              <Text style={styles.emptyTableText}>{t('common.loading')}</Text>
             ) : invitations.length === 0 ? (
-              <Text style={styles.emptyTableText}>No invitations yet</Text>
+              <Text style={styles.emptyTableText}>{t('admin.noInvitationsYet')}</Text>
             ) : (
               <ScrollView horizontal showsHorizontalScrollIndicator>
                 <View>
                   <View style={styles.tableHeaderRow}>
                     {INVITATIONS_HEADERS.map((h) => (
                       <View key={h.key} style={[styles.th, { width: h.width }]}>
-                        <Text style={styles.thText}>{h.label}</Text>
+                        <Text style={styles.thText}>{t(h.labelKey)}</Text>
                       </View>
                     ))}
                   </View>
@@ -528,7 +537,7 @@ export default function AdminScreen() {
                           style={[styles.statusBadge, inv.accepted ? styles.statusActive : styles.statusPending]}
                         >
                           <Text style={[styles.statusText, { color: inv.accepted ? COLORS.primary : '#b45309' }]}>
-                            {inv.accepted ? 'Accepted' : 'Pending'}
+                            {inv.accepted ? t('admin.accepted') : t('admin.pendingStatus')}
                           </Text>
                         </View>
                       </View>
@@ -548,39 +557,39 @@ export default function AdminScreen() {
             <ScrollView keyboardShouldPersistTaps="handled">
               {!inviteUrl ? (
                 <>
-                  <Text style={styles.modalTitle}>Invite someone</Text>
+                  <Text style={styles.modalTitle}>{t('admin.inviteSomeone')}</Text>
 
                   <View style={styles.field}>
                     <Text style={styles.label}>
-                      Email address <Text style={styles.optionalText}>(optional)</Text>
+                      {t('admin.emailAddress')} <Text style={styles.optionalText}>{t('admin.optional')}</Text>
                     </Text>
                     <TextInput
                       style={styles.input}
-                      placeholder="worker@example.com"
+                      placeholder={t('admin.emailPlaceholder')}
                       placeholderTextColor={COLORS.textMuted}
                       keyboardType="email-address"
                       autoCapitalize="none"
                       value={inviteForm.email}
-                      onChangeText={(t) => setInviteForm((f) => ({ ...f, email: t }))}
+                      onChangeText={(val) => setInviteForm((f) => ({ ...f, email: val }))}
                     />
                   </View>
 
                   <View style={styles.field}>
                     <Text style={styles.label}>
-                      Work number <Text style={styles.optionalText}>(optional)</Text>
+                      {t('admin.workNumber')} <Text style={styles.optionalText}>{t('admin.optional')}</Text>
                     </Text>
                     <TextInput
                       style={styles.input}
-                      placeholder="e.g. 334"
+                      placeholder={t('admin.workNumberPlaceholder')}
                       placeholderTextColor={COLORS.textMuted}
                       keyboardType="number-pad"
                       value={inviteForm.work_number}
-                      onChangeText={(t) => setInviteForm((f) => ({ ...f, work_number: t }))}
+                      onChangeText={(val) => setInviteForm((f) => ({ ...f, work_number: val }))}
                     />
                   </View>
 
                   <View style={styles.field}>
-                    <Text style={styles.label}>Role</Text>
+                    <Text style={styles.label}>{t('admin.role')}</Text>
                     <View style={styles.chipChoiceRow}>
                       {ROLE_OPTIONS.map((r) => (
                         <Pressable
@@ -589,7 +598,7 @@ export default function AdminScreen() {
                           onPress={() => setInviteForm((f) => ({ ...f, role: r, house_group: '' }))}
                         >
                           <Text style={[styles.chipChoiceText, inviteForm.role === r && styles.chipChoiceTextActive]}>
-                            {r}
+                            {t(ROLE_LABEL_KEY[r])}
                           </Text>
                         </Pressable>
                       ))}
@@ -598,7 +607,7 @@ export default function AdminScreen() {
 
                   {inviteForm.role === 'housemaster' && (
                     <View style={styles.field}>
-                      <Text style={styles.label}>House group</Text>
+                      <Text style={styles.label}>{t('admin.houseGroup')}</Text>
                       <View style={styles.chipChoiceRow}>
                         {HOUSE_GROUPS.map((g) => (
                           <Pressable
@@ -622,21 +631,21 @@ export default function AdminScreen() {
 
                   <View style={styles.modalButtons}>
                     <Pressable style={styles.cancelButton} onPress={resetInviteModal}>
-                      <Text style={styles.cancelButtonText}>Cancel</Text>
+                      <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
                     </Pressable>
                     <Pressable
                       style={[styles.primaryButton, styles.modalPrimaryButton]}
                       onPress={sendInvite}
                       disabled={inviteSaving}
                     >
-                      <Text style={styles.primaryButtonText}>{inviteSaving ? 'Sending...' : 'Create invitation'}</Text>
+                      <Text style={styles.primaryButtonText}>{inviteSaving ? t('admin.sending') : t('admin.createInvitation')}</Text>
                     </Pressable>
                   </View>
                 </>
               ) : (
                 <>
-                  <Text style={styles.modalTitle}>Invitation created</Text>
-                  <Text style={styles.modalSubtitle}>Share this registration link with the person you are inviting:</Text>
+                  <Text style={styles.modalTitle}>{t('admin.invitationCreated')}</Text>
+                  <Text style={styles.modalSubtitle}>{t('admin.shareRegLink')}</Text>
                   <View style={styles.linkBox}>
                     <Text style={styles.linkText}>{inviteUrl}</Text>
                   </View>
@@ -645,11 +654,11 @@ export default function AdminScreen() {
                       style={[styles.outlineButton, { flex: 1, alignItems: 'center' }]}
                       onPress={() => Share.share({ message: inviteUrl })}
                     >
-                      <Text style={styles.outlineButtonText}>Share link</Text>
+                      <Text style={styles.outlineButtonText}>{t('admin.shareLink')}</Text>
                     </Pressable>
                   </View>
                   <Pressable style={styles.primaryButton} onPress={resetInviteModal}>
-                    <Text style={styles.primaryButtonText}>Done</Text>
+                    <Text style={styles.primaryButtonText}>{t('common.done')}</Text>
                   </Pressable>
                 </>
               )}
@@ -667,7 +676,7 @@ export default function AdminScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, styles.smallModalCard]}>
-            <Text style={styles.modalTitle}>Change role</Text>
+            <Text style={styles.modalTitle}>{t('admin.changeRole')}</Text>
             <Text style={styles.modalSubtitle}>
               #{roleModalWorker?.work_number} {roleModalWorker?.full_name}
             </Text>
@@ -688,7 +697,7 @@ export default function AdminScreen() {
               ))}
             </View>
             <Pressable style={styles.cancelButton} onPress={() => setRoleModalWorker(null)}>
-              <Text style={styles.cancelButtonText}>Close</Text>
+              <Text style={styles.cancelButtonText}>{t('common.close')}</Text>
             </Pressable>
           </View>
         </View>

@@ -20,6 +20,7 @@ import { useAuth } from '../../lib/auth';
 import { formatDateLong, formatDateMedium } from '../../lib/dates';
 import { exportWorkLogExcel, exportWorkLogPdf } from '../../lib/exporters';
 import { GROUP_COLORS, getHouseGroup } from '../../lib/houseGroups';
+import { useLanguage } from '../../lib/i18n';
 import { COLORS, FONTS } from '../../lib/theme';
 
 const BREAK_QUICK_OPTIONS = [10, 15, 20, 30, 45];
@@ -36,21 +37,22 @@ const COLW = {
 };
 
 const TABLE_HEADERS = [
-  { key: 'work', label: 'Work#', width: COLW.workNum },
-  { key: 'name', label: 'Name', width: COLW.name },
-  { key: 'group', label: 'Group', width: COLW.group },
-  { key: 'start', label: 'Start', width: COLW.time },
-  { key: 'finish', label: 'Finish', width: COLW.time },
-  { key: 'break', label: 'Break', width: COLW.breakCol },
-  { key: 'white', label: 'White hrs', width: COLW.hours },
-  { key: 'orange', label: 'Orange hrs', width: COLW.hours },
-  { key: 'total', label: 'Total', width: COLW.hours },
-  { key: 'workdone', label: 'Work done', width: COLW.work },
-  { key: 'remove', label: '', width: COLW.remove },
+  { key: 'work', labelKey: 'sup.colWorkNum', width: COLW.workNum },
+  { key: 'name', labelKey: 'sup.colName', width: COLW.name },
+  { key: 'group', labelKey: 'sup.colGroup', width: COLW.group },
+  { key: 'start', labelKey: 'sup.colStart', width: COLW.time },
+  { key: 'finish', labelKey: 'sup.colFinish', width: COLW.time },
+  { key: 'break', labelKey: 'sup.colBreak', width: COLW.breakCol },
+  { key: 'white', labelKey: 'sup.colWhiteHrs', width: COLW.hours },
+  { key: 'orange', labelKey: 'sup.colOrangeHrs', width: COLW.hours },
+  { key: 'total', labelKey: 'sup.colTotal', width: COLW.hours },
+  { key: 'workdone', labelKey: 'sup.colWorkDone', width: COLW.work },
+  { key: 'remove', labelKey: null, width: COLW.remove },
 ];
 
 export default function SupervisorScreen() {
   const { worker } = useAuth();
+  const { t } = useLanguage();
   const [session, setSession] = useState(null);
   const [batches, setBatches] = useState([]);
   const [logs, setLogs] = useState([]);
@@ -144,11 +146,11 @@ export default function SupervisorScreen() {
   const addBatch = async () => {
     setBatchError('');
     if (!batchNumbersList.length) {
-      setBatchError('Enter at least one worker number');
+      setBatchError(t('sup.enterWorkerNumber'));
       return;
     }
     if (!batchStart) {
-      setBatchError('Start time is required');
+      setBatchError(t('sup.startTimeRequired'));
       return;
     }
     setBatchSaving(true);
@@ -165,7 +167,7 @@ export default function SupervisorScreen() {
       setBatchWork('');
       await Promise.all([loadBatches(session.id), loadLogs(session.id)]);
     } catch (e) {
-      setBatchError(e.response?.data?.error || 'Failed to add batch');
+      setBatchError(e.response?.data?.error || t('sup.failedAddBatch'));
     } finally {
       setBatchSaving(false);
     }
@@ -207,7 +209,7 @@ export default function SupervisorScreen() {
       setSent(true);
       setSession((s) => ({ ...s, status: 'sent' }));
     } catch (e) {
-      Alert.alert('Error', e.response?.data?.error || 'Failed to send');
+      Alert.alert(t('common.error'), e.response?.data?.error || t('sup.failedToSend'));
     } finally {
       setSending(false);
     }
@@ -223,7 +225,7 @@ export default function SupervisorScreen() {
     try {
       await exportWorkLogPdf({ worker, session, logs, dateLabel: formatDateMedium(new Date()) });
     } catch {
-      Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
+      Alert.alert(t('common.exportFailed'), t('common.exportPdfError'));
     } finally {
       setExporting(false);
     }
@@ -234,7 +236,7 @@ export default function SupervisorScreen() {
     try {
       await exportWorkLogExcel({ worker, session, logs, dateLabel: formatDateMedium(new Date()) });
     } catch {
-      Alert.alert('Export failed', 'Could not generate the Excel file. Please try again.');
+      Alert.alert(t('common.exportFailed'), t('common.exportExcelError'));
     } finally {
       setExporting(false);
     }
@@ -255,16 +257,16 @@ export default function SupervisorScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>Supervisor panel</Text>
+          <Text style={styles.title}>{t('sup.panel')}</Text>
           <Text style={styles.subtitle}>{formatDateLong(new Date())}</Text>
         </View>
 
         {!session && (
           <View style={[styles.card, styles.emptyCard]}>
-            <Text style={styles.emptyTitle}>No active session today</Text>
-            <Text style={styles.emptyText}>Start a session to begin recording workers.</Text>
+            <Text style={styles.emptyTitle}>{t('sup.noActiveSession')}</Text>
+            <Text style={styles.emptyText}>{t('sup.startSessionDesc')}</Text>
             <Pressable style={styles.primaryButton} onPress={startSession}>
-              <Text style={styles.primaryButtonText}>+ Start today&apos;s session</Text>
+              <Text style={styles.primaryButtonText}>{t('sup.startSession')}</Text>
             </Pressable>
           </View>
         )}
@@ -274,31 +276,31 @@ export default function SupervisorScreen() {
             <View style={[styles.card, styles.summaryCard]}>
               <View style={styles.summaryStats}>
                 <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Workers recorded</Text>
+                  <Text style={styles.summaryLabel}>{t('sup.workersRecorded')}</Text>
                   <Text style={[styles.summaryValue, { color: COLORS.primary }]}>{logs.length}</Text>
                 </View>
                 <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Total break</Text>
+                  <Text style={styles.summaryLabel}>{t('sup.totalBreak')}</Text>
                   <Text style={[styles.summaryValue, { color: '#b45309' }]}>
-                    {session.total_break_mins || 0} min
+                    {session.total_break_mins || 0} {t('sup.min')}
                   </Text>
                 </View>
                 <View style={styles.summaryItem}>
-                  <Text style={styles.summaryLabel}>Batches</Text>
+                  <Text style={styles.summaryLabel}>{t('sup.batches')}</Text>
                   <Text style={[styles.summaryValue, { color: '#555555' }]}>{batches.length}</Text>
                 </View>
                 {sent && (
                   <View style={styles.sentBadge}>
-                    <Text style={styles.sentBadgeText}>Sent to admin</Text>
+                    <Text style={styles.sentBadgeText}>{t('sup.sentToAdmin')}</Text>
                   </View>
                 )}
               </View>
               <View style={styles.summaryActions}>
                 <Pressable style={styles.breakButton} onPress={() => setShowBreakModal(true)}>
-                  <Text style={styles.breakButtonText}>+ Break</Text>
+                  <Text style={styles.breakButtonText}>{t('sup.addBreak')}</Text>
                 </Pressable>
                 <Pressable style={styles.primaryButtonSmall} onPress={() => setShowBatchModal(true)}>
-                  <Text style={styles.primaryButtonSmallText}>+ Add workers</Text>
+                  <Text style={styles.primaryButtonSmallText}>{t('sup.addWorkers')}</Text>
                 </Pressable>
               </View>
             </View>
@@ -308,13 +310,13 @@ export default function SupervisorScreen() {
                 style={[styles.toggleButton, view === 'session' && styles.toggleButtonActive]}
                 onPress={() => setView('session')}
               >
-                <Text style={[styles.toggleText, view === 'session' && styles.toggleTextActive]}>Batches</Text>
+                <Text style={[styles.toggleText, view === 'session' && styles.toggleTextActive]}>{t('sup.batches')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.toggleButton, view === 'worklog' && styles.toggleButtonActive]}
                 onPress={() => setView('worklog')}
               >
-                <Text style={[styles.toggleText, view === 'worklog' && styles.toggleTextActive]}>Work log</Text>
+                <Text style={[styles.toggleText, view === 'worklog' && styles.toggleTextActive]}>{t('sup.workLogTab')}</Text>
               </Pressable>
             </View>
 
@@ -322,9 +324,7 @@ export default function SupervisorScreen() {
               <View style={styles.batchList}>
                 {batches.length === 0 && (
                   <View style={[styles.card, styles.emptyBatchCard]}>
-                    <Text style={styles.emptyBatchText}>
-                      No batches yet. Tap &quot;Add workers&quot; to start recording.
-                    </Text>
+                    <Text style={styles.emptyBatchText}>{t('sup.noBatchesYet')}</Text>
                   </View>
                 )}
                 {batches.map((b) => {
@@ -341,15 +341,15 @@ export default function SupervisorScreen() {
                       <View style={styles.batchHeader}>
                         <View style={styles.batchTimes}>
                           <Text style={styles.batchTimeText}>
-                            Start: <Text style={{ color: COLORS.primary }}>{b.start_time?.slice(0, 5)}</Text>
+                            {t('sup.startLabel')} <Text style={{ color: COLORS.primary }}>{b.start_time?.slice(0, 5)}</Text>
                           </Text>
                           {hasFinish ? (
                             <Text style={styles.batchTimeText}>
-                              Finish: <Text style={{ color: '#b45309' }}>{b.finish_time?.slice(0, 5)}</Text>
+                              {t('sup.finishLabel')} <Text style={{ color: '#b45309' }}>{b.finish_time?.slice(0, 5)}</Text>
                             </Text>
                           ) : (
                             <View style={styles.pendingBadge}>
-                              <Text style={styles.pendingBadgeText}>No finish yet</Text>
+                              <Text style={styles.pendingBadgeText}>{t('sup.noFinishYet')}</Text>
                             </View>
                           )}
                         </View>
@@ -361,7 +361,7 @@ export default function SupervisorScreen() {
                           }}
                         >
                           <Text style={hasFinish ? styles.outlineButtonText : styles.primaryButtonSmallText}>
-                            {hasFinish ? 'Edit finish' : 'Set finish time'}
+                            {hasFinish ? t('sup.editFinish') : t('sup.setFinishTime')}
                           </Text>
                         </Pressable>
                       </View>
@@ -379,7 +379,7 @@ export default function SupervisorScreen() {
                         })}
                       </View>
                       <Text style={styles.batchCount}>
-                        {b.worker_numbers?.length || 0} worker{(b.worker_numbers?.length || 0) !== 1 ? 's' : ''}
+                        {b.worker_numbers?.length || 0} {(b.worker_numbers?.length || 0) !== 1 ? t('sup.workers') : t('sup.worker')}
                       </Text>
                     </View>
                   );
@@ -391,14 +391,14 @@ export default function SupervisorScreen() {
               <View>
                 <View style={[styles.card, styles.tableCard]}>
                   {logs.length === 0 ? (
-                    <Text style={styles.emptyTableText}>No workers recorded yet.</Text>
+                    <Text style={styles.emptyTableText}>{t('sup.noWorkersRecorded')}</Text>
                   ) : (
                     <ScrollView horizontal showsHorizontalScrollIndicator>
                       <View>
                         <View style={styles.tableHeaderRow}>
                           {TABLE_HEADERS.map((h) => (
                             <View key={h.key} style={[styles.th, { width: h.width }]}>
-                              <Text style={styles.thText}>{h.label}</Text>
+                              <Text style={styles.thText}>{h.labelKey ? t(h.labelKey) : ''}</Text>
                             </View>
                           ))}
                         </View>
@@ -412,7 +412,7 @@ export default function SupervisorScreen() {
                             </View>
                             <View style={[styles.td, { width: COLW.name }]}>
                               <Text style={r.worker_name ? styles.tdText : styles.tdMuted} numberOfLines={1}>
-                                {r.worker_name || 'Unknown'}
+                                {r.worker_name || t('common.unknown')}
                               </Text>
                             </View>
                             <View style={[styles.td, { width: COLW.group }]}>
@@ -423,12 +423,12 @@ export default function SupervisorScreen() {
                             </View>
                             <View style={[styles.td, { width: COLW.time }]}>
                               <Text style={r.finish_time ? styles.tdMono : styles.tdMuted}>
-                                {r.finish_time?.slice(0, 5) || 'pending'}
+                                {r.finish_time?.slice(0, 5) || t('common.pending')}
                               </Text>
                             </View>
                             <View style={[styles.td, { width: COLW.breakCol }]}>
                               <Text style={styles.tdBreak}>
-                                {r.total_break_mins > 0 ? `${r.total_break_mins} min` : ''}
+                                {r.total_break_mins > 0 ? `${r.total_break_mins} ${t('sup.min')}` : ''}
                               </Text>
                             </View>
                             <View style={[styles.td, { width: COLW.hours }]}>
@@ -464,24 +464,24 @@ export default function SupervisorScreen() {
                       onPress={handleDownloadPdf}
                       disabled={exporting}
                     >
-                      <Text style={styles.outlineButtonText}>Download PDF</Text>
+                      <Text style={styles.outlineButtonText}>{t('common.downloadPDF')}</Text>
                     </Pressable>
                     <Pressable
                       style={({ pressed }) => [styles.outlineButton, pressed && styles.outlineButtonPressed]}
                       onPress={handleDownloadExcel}
                       disabled={exporting}
                     >
-                      <Text style={styles.outlineButtonText}>Download Excel</Text>
+                      <Text style={styles.outlineButtonText}>{t('common.downloadExcel')}</Text>
                     </Pressable>
                     {exporting && <ActivityIndicator size="small" color={COLORS.primary} />}
                     <View style={{ flex: 1 }} />
                     {!sent ? (
                       <Pressable style={styles.sendButton} onPress={sendToAdmin} disabled={sending}>
-                        <Text style={styles.sendButtonText}>{sending ? 'Sending...' : 'Send to admin'}</Text>
+                        <Text style={styles.sendButtonText}>{sending ? t('sup.sending') : t('sup.sendToAdmin')}</Text>
                       </Pressable>
                     ) : (
                       <View style={styles.sentBadgeLarge}>
-                        <Text style={styles.sentBadgeLargeText}>Sent to admin</Text>
+                        <Text style={styles.sentBadgeLargeText}>{t('sup.sentToAdmin')}</Text>
                       </View>
                     )}
                   </View>
@@ -505,26 +505,26 @@ export default function SupervisorScreen() {
         >
           <View style={styles.modalCard}>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Text style={styles.modalTitle}>Add workers</Text>
+              <Text style={styles.modalTitle}>{t('sup.addWorkersTitle')}</Text>
 
               <View style={styles.field}>
-                <Text style={styles.label}>Worker numbers</Text>
+                <Text style={styles.label}>{t('sup.workerNumbers')}</Text>
                 <TextInput
                   style={[styles.input, styles.textarea]}
-                  placeholder="234 354 267 292 (space or comma separated)"
+                  placeholder={t('sup.workerNumbersPlaceholder')}
                   placeholderTextColor={COLORS.textMuted}
                   value={batchNumbers}
                   onChangeText={setBatchNumbers}
                   multiline
                 />
-                <Text style={styles.helperText}>{batchNumbersList.length} workers entered</Text>
+                <Text style={styles.helperText}>{batchNumbersList.length} {t('sup.workersEntered')}</Text>
               </View>
 
               <View style={styles.field}>
-                <Text style={styles.label}>Start time</Text>
+                <Text style={styles.label}>{t('sup.startTime')}</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="HH:MM e.g. 7:00"
+                  placeholder={t('sup.startTimePlaceholder')}
                   placeholderTextColor={COLORS.textMuted}
                   value={batchStart}
                   onChangeText={setBatchStart}
@@ -533,11 +533,11 @@ export default function SupervisorScreen() {
 
               <View style={styles.field}>
                 <Text style={styles.label}>
-                  What work <Text style={styles.optionalText}>(optional)</Text>
+                  {t('sup.whatWork')} <Text style={styles.optionalText}>{t('sup.optional')}</Text>
                 </Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="e.g. blueberry picking, cleaning"
+                  placeholder={t('sup.whatWorkPlaceholder')}
                   placeholderTextColor={COLORS.textMuted}
                   value={batchWork}
                   onChangeText={setBatchWork}
@@ -548,7 +548,7 @@ export default function SupervisorScreen() {
 
               {batchNumbersList.length > 0 && (
                 <View style={styles.groupPreview}>
-                  <Text style={styles.groupPreviewLabel}>Groups detected</Text>
+                  <Text style={styles.groupPreviewLabel}>{t('sup.groupsDetected')}</Text>
                   <View style={styles.chipRow}>
                     {batchNumbersList.map((wn) => (
                       <View key={wn} style={styles.groupPreviewItem}>
@@ -568,14 +568,14 @@ export default function SupervisorScreen() {
                     setBatchError('');
                   }}
                 >
-                  <Text style={styles.cancelButtonText}>Cancel</Text>
+                  <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
                 </Pressable>
                 <Pressable
                   style={[styles.primaryButton, styles.modalPrimaryButton]}
                   onPress={addBatch}
                   disabled={batchSaving}
                 >
-                  <Text style={styles.primaryButtonText}>{batchSaving ? 'Saving...' : 'Add batch'}</Text>
+                  <Text style={styles.primaryButtonText}>{batchSaving ? t('common.saving') : t('sup.addBatch')}</Text>
                 </Pressable>
               </View>
             </ScrollView>
@@ -592,19 +592,19 @@ export default function SupervisorScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, styles.smallModalCard]}>
-            <Text style={styles.modalTitle}>Record break</Text>
+            <Text style={styles.modalTitle}>{t('sup.recordBreak')}</Text>
             <Text style={styles.modalSubtitle}>
-              Current total: <Text style={styles.bold}>{session?.total_break_mins || 0} min</Text>
+              {t('sup.currentTotal')} <Text style={styles.bold}>{session?.total_break_mins || 0} {t('sup.min')}</Text>
             </Text>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Break duration (minutes)</Text>
+              <Text style={styles.label}>{t('sup.breakDuration')}</Text>
               <TextInput
                 style={[styles.input, styles.bigCenterInput]}
-                placeholder="e.g. 20"
+                placeholder={t('sup.breakPlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 value={breakMins}
-                onChangeText={(t) => setBreakMins(t.replace(/[^0-9]/g, ''))}
+                onChangeText={(val) => setBreakMins(val.replace(/[^0-9]/g, ''))}
                 keyboardType="number-pad"
               />
             </View>
@@ -625,7 +625,7 @@ export default function SupervisorScreen() {
 
             <View style={styles.modalButtons}>
               <Pressable style={styles.cancelButton} onPress={() => setShowBreakModal(false)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.primaryButton, styles.modalPrimaryButton]}
@@ -633,7 +633,7 @@ export default function SupervisorScreen() {
                 disabled={breakSaving || !breakMins}
               >
                 <Text style={styles.primaryButtonText}>
-                  {breakSaving ? 'Saving...' : `Add ${breakMins || '—'} min break`}
+                  {breakSaving ? t('common.saving') : `${t('sup.addBreakPrefix')} ${breakMins || '—'} ${t('sup.minBreakSuffix')}`}
                 </Text>
               </Pressable>
             </View>
@@ -650,14 +650,14 @@ export default function SupervisorScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalCard, styles.smallModalCard]}>
-            <Text style={styles.modalTitle}>Set finish time</Text>
-            <Text style={styles.modalSubtitle}>This applies to all workers in this batch.</Text>
+            <Text style={styles.modalTitle}>{t('sup.setFinishTime')}</Text>
+            <Text style={styles.modalSubtitle}>{t('sup.applyToAllWorkers')}</Text>
 
             <View style={styles.field}>
-              <Text style={styles.label}>Finish time</Text>
+              <Text style={styles.label}>{t('sup.finishTime')}</Text>
               <TextInput
                 style={[styles.input, styles.bigCenterInput]}
-                placeholder="HH:MM e.g. 16:00"
+                placeholder={t('sup.finishTimePlaceholder')}
                 placeholderTextColor={COLORS.textMuted}
                 value={finishTime}
                 onChangeText={setFinishTime}
@@ -666,14 +666,14 @@ export default function SupervisorScreen() {
 
             <View style={styles.modalButtons}>
               <Pressable style={styles.cancelButton} onPress={() => setFinishBatchId(null)}>
-                <Text style={styles.cancelButtonText}>Cancel</Text>
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
               </Pressable>
               <Pressable
                 style={[styles.primaryButton, styles.modalPrimaryButton]}
                 onPress={setFinish}
                 disabled={finishSaving || !finishTime}
               >
-                <Text style={styles.primaryButtonText}>{finishSaving ? 'Saving...' : 'Set finish'}</Text>
+                <Text style={styles.primaryButtonText}>{finishSaving ? t('common.saving') : t('sup.setFinish')}</Text>
               </Pressable>
             </View>
           </View>

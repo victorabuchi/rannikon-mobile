@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { formatDate } from '../lib/dates';
+import { useLanguage } from '../lib/i18n';
 import { blankIfZeroHours, hasOrangeWork, minsToHHMM, parseHoursToMinutes } from '../lib/timesheet';
 import { COLORS, FONTS } from '../lib/theme';
 
@@ -24,7 +25,7 @@ export const PAPER_COLORS = {
   green: { border: '#2d6a2d', header: '#e8f5e9' },
 };
 
-const DAY_NAMES = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const DAY_NAMES = ['daySun', 'dayMon', 'dayTue', 'dayWed', 'dayThu', 'dayFri', 'daySat'];
 
 // Mirrors the week chunking in PapersFullView's weekly tab: consecutive
 // 7-day blocks starting at day 1, capped at 4 weeks — not Mon-Sun aligned.
@@ -93,6 +94,7 @@ export function EditableCell({
   style,
   textStyle,
 }) {
+  const { t } = useLanguage();
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(value != null ? String(value) : '');
 
@@ -128,7 +130,7 @@ export function EditableCell({
                 await onSave(draft);
               } catch {
                 setDraft(previous);
-                Alert.alert('Error', 'Could not save the change. Please try again.');
+                Alert.alert(t('common.error'), t('tables.saveError'));
               }
             }
           }}
@@ -153,17 +155,18 @@ export function EditableCell({
 }
 
 export function WhitePaperTable({ days, year, month, entries, editable = false, onSave }) {
+  const { t } = useLanguage();
   const c = PAPER_COLORS.white;
   const border = { borderColor: c.border };
   return (
     <View style={[styles.table, border]}>
       <View style={[styles.headerRow, { backgroundColor: c.header }]}>
-        <HeaderCell width={COL.date} label="Date" style={border} />
-        <HeaderCell width={COL.time} label="Start" style={border} />
-        <HeaderCell width={COL.time} label="Finish" style={border} />
-        <HeaderCell width={COL.breakCol} label="Must have Eating break" style={border} />
-        <HeaderCell width={COL.hours} label="Hours minus breaks" style={border} />
-        <HeaderCell width={COL.work} label="What work" style={border} />
+        <HeaderCell width={COL.date} label={t('tables.date')} style={border} />
+        <HeaderCell width={COL.time} label={t('tables.start')} style={border} />
+        <HeaderCell width={COL.time} label={t('tables.finish')} style={border} />
+        <HeaderCell width={COL.breakCol} label={t('tables.mustEatingBreak')} style={border} />
+        <HeaderCell width={COL.hours} label={t('tables.hoursMinusBreaks')} style={border} />
+        <HeaderCell width={COL.work} label={t('tables.whatWork')} style={border} />
       </View>
       {days.map((day) => {
         const date = formatDate(year, month, day);
@@ -189,7 +192,7 @@ export function WhitePaperTable({ days, year, month, entries, editable = false, 
               onSave={(v) => onSave(date, 'white_finish', v)}
               style={border}
             />
-            <Cell width={COL.breakCol} text="30 min" style={border} />
+            <Cell width={COL.breakCol} text={t('tables.min30')} style={border} />
             <EditableCell
               width={COL.hours}
               value={hasEntry ? entry.white_hours || '8:00' : ''}
@@ -215,18 +218,19 @@ export function WhitePaperTable({ days, year, month, entries, editable = false, 
 }
 
 export function OrangePaperTable({ days, year, month, entries, editable = false, onSave }) {
+  const { t } = useLanguage();
   const c = PAPER_COLORS.orange;
   const cellStyle = { borderColor: c.border, backgroundColor: c.cell };
   return (
     <View style={[styles.table, { borderColor: c.border }]}>
       <View style={[styles.headerRow, { backgroundColor: c.header }]}>
-        <HeaderCell width={COL.date} label="Date" style={{ borderColor: c.border }} />
-        <HeaderCell width={COL.time} label="Start" style={{ borderColor: c.border }} />
-        <HeaderCell width={COL.time} label="Finish" style={{ borderColor: c.border }} />
-        <HeaderCell width={COL.breakCol} label="Break" style={{ borderColor: c.border }} />
-        <HeaderCell width={COL.hours} label="Hours minus breaks" style={{ borderColor: c.border }} />
-        <HeaderCell width={COL.work} label="What work" style={{ borderColor: c.border }} />
-        <HeaderCell width={COL.sig} label="Signature" style={{ borderColor: c.border }} />
+        <HeaderCell width={COL.date} label={t('tables.date')} style={{ borderColor: c.border }} />
+        <HeaderCell width={COL.time} label={t('tables.start')} style={{ borderColor: c.border }} />
+        <HeaderCell width={COL.time} label={t('tables.finish')} style={{ borderColor: c.border }} />
+        <HeaderCell width={COL.breakCol} label={t('tables.breakCol')} style={{ borderColor: c.border }} />
+        <HeaderCell width={COL.hours} label={t('tables.hoursMinusBreaks')} style={{ borderColor: c.border }} />
+        <HeaderCell width={COL.work} label={t('tables.whatWork')} style={{ borderColor: c.border }} />
+        <HeaderCell width={COL.sig} label={t('tables.signature')} style={{ borderColor: c.border }} />
       </View>
       {days.map((day) => {
         const date = formatDate(year, month, day);
@@ -276,19 +280,20 @@ export function OrangePaperTable({ days, year, month, entries, editable = false,
 }
 
 export function GreenPaperTable({ days, year, month, greenEntries, editable = false, onSave }) {
+  const { t } = useLanguage();
   const c = PAPER_COLORS.green;
   const border = { borderColor: c.border };
   return (
     <View style={[styles.table, border]}>
       <View style={[styles.headerRow, { backgroundColor: c.header }]}>
-        <HeaderCell width={COL.date} label="Date" style={border} />
-        <HeaderCell width={COL.time} label="Start" style={border} />
-        <HeaderCell width={COL.time} label="Finish" style={border} />
-        <HeaderCell width={COL.breakCol} label="Must have Eating break" style={border} />
-        <HeaderCell width={COL.breakCol} label="Extra Breaks" style={border} />
-        <HeaderCell width={COL.hours} label="Hours minus breaks" style={border} />
-        <HeaderCell width={COL.work} label="What was picked up" style={border} />
-        <HeaderCell width={COL.hours} label="Kg picked" style={border} />
+        <HeaderCell width={COL.date} label={t('tables.date')} style={border} />
+        <HeaderCell width={COL.time} label={t('tables.start')} style={border} />
+        <HeaderCell width={COL.time} label={t('tables.finish')} style={border} />
+        <HeaderCell width={COL.breakCol} label={t('tables.mustEatingBreak')} style={border} />
+        <HeaderCell width={COL.breakCol} label={t('tables.extraBreaks')} style={border} />
+        <HeaderCell width={COL.hours} label={t('tables.hoursMinusBreaks')} style={border} />
+        <HeaderCell width={COL.work} label={t('tables.whatPickedUp')} style={border} />
+        <HeaderCell width={COL.hours} label={t('tables.kgPicked')} style={border} />
       </View>
       {days.map((day) => {
         const date = formatDate(year, month, day);
@@ -311,7 +316,7 @@ export function GreenPaperTable({ days, year, month, greenEntries, editable = fa
               onSave={(v) => onSave(date, 'finish_time', v)}
               style={border}
             />
-            <Cell width={COL.breakCol} text="1 hour" textStyle={{ color: '#888888' }} style={border} />
+            <Cell width={COL.breakCol} text={t('tables.hour1')} textStyle={{ color: '#888888' }} style={border} />
             <Cell width={COL.breakCol} text="" style={border} />
             <Cell width={COL.hours} text="" style={border} />
             <EditableCell
@@ -338,26 +343,27 @@ export function GreenPaperTable({ days, year, month, greenEntries, editable = fa
   );
 }
 
-const WEEK_DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thur', 'Fri', 'Sat (max 11)', 'Sun'];
+const WEEK_DAY_LABELS = ['dayMon', 'dayTue', 'dayWed', 'dayThur', 'dayFri', 'daySatMax11', 'daySun'];
 
 // The fixed Mon-Sun summary shown inline below a single day on the Days tab —
 // mirrors InlineDayView's weekly summary table (only the Total column and the
 // Sun column carry values; the rest of the grid is intentionally blank).
 export function InlineWeeklySummary({ entry }) {
+  const { t } = useLanguage();
   const c = PAPER_COLORS.blue;
   const border = { borderColor: c.border };
   return (
     <View style={[styles.table, border]}>
       <View style={[styles.headerRow, { backgroundColor: c.header }]}>
-        <HeaderCell width={COL.type} label="Type" style={border} />
+        <HeaderCell width={COL.type} label={t('tables.type')} style={border} />
         {WEEK_DAY_LABELS.map((label) => (
-          <HeaderCell key={label} width={COL.day} label={label} style={border} />
+          <HeaderCell key={label} width={COL.day} label={t(`tables.${label}`)} style={border} />
         ))}
-        <HeaderCell width={COL.total} label="Total hours" style={border} />
+        <HeaderCell width={COL.total} label={t('tables.totalHours')} style={border} />
       </View>
-      <InlineWeekRow label="Working hours (max 8)" value={entry.white_hours} valueColor="#2d6a2d" border={border} />
-      <InlineWeekRow label="Extra hours (max 3)" value={entry.orange_hours} valueColor="#b45309" border={border} />
-      <InlineWeekRow label="Total" value={entry.total_hours} valueColor="#1565c0" border={border} highlight />
+      <InlineWeekRow label={t('tables.workingHoursMax8')} value={entry.white_hours} valueColor="#2d6a2d" border={border} />
+      <InlineWeekRow label={t('tables.extraHoursMax3')} value={entry.orange_hours} valueColor="#b45309" border={border} />
+      <InlineWeekRow label={t('tables.total')} value={entry.total_hours} valueColor="#1565c0" border={border} highlight />
     </View>
   );
 }
@@ -378,6 +384,7 @@ function InlineWeekRow({ label, value, valueColor, border, highlight }) {
 // The full Weekly Summary on the Papers tab — pickup/working/extra rows with
 // editable hours, plus a signature row, mirroring PapersFullView's weekly tab.
 export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntries, onSave }) {
+  const { t } = useLanguage();
   const weeks = getWeekChunks(year, month, daysInMonth);
   const border = { borderColor: '#333333' };
   const totalWidth = COL.type + COL.day * 7 + COL.total;
@@ -402,7 +409,7 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntr
 
         return (
           <View key={weekIdx} style={weekIdx > 0 && styles.weekSpacing}>
-            <Text style={styles.weekLabel}>Week {weekIdx + 1}</Text>
+            <Text style={styles.weekLabel}>{t('tables.week')} {weekIdx + 1}</Text>
             <View style={[styles.table, border]}>
               <View style={[styles.headerRow, { backgroundColor: '#e0e0e0' }]}>
                 <HeaderCell width={COL.type} label="" style={[border, { backgroundColor: '#d0d0d0' }]} />
@@ -410,19 +417,19 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntr
                   <HeaderCell
                     key={i}
                     width={COL.day}
-                    label={info.name}
-                    sub={info.exists && !info.isSun ? (info.isSat ? 'max 11' : 'max 3') : ''}
+                    label={info.name ? t(`tables.${info.name}`) : ''}
+                    sub={info.exists && !info.isSun ? (info.isSat ? t('tables.max11') : t('tables.max3')) : ''}
                     style={[border, { backgroundColor: info.isSun ? '#e8e8e8' : '#e0e0e0' }]}
                     textStyle={{ color: info.isSun ? '#999999' : '#1a1a18' }}
                   />
                 ))}
-                <HeaderCell width={COL.total} label="total" sub="hours" style={[border, { backgroundColor: '#d0d0d0' }]} />
+                <HeaderCell width={COL.total} label={t('tables.totalLower')} sub={t('tables.hours')} style={[border, { backgroundColor: '#d0d0d0' }]} />
               </View>
 
               <View style={styles.row}>
                 <Cell
                   width={COL.type}
-                  text="Berry picking (kg)"
+                  text={t('tables.berryPickingKg')}
                   align="left"
                   textStyle={{ fontWeight: '700', color: '#2d6a2d' }}
                   style={{ borderColor: '#2d6a2d', backgroundColor: '#e8f5e9' }}
@@ -453,7 +460,7 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntr
                 <Cell
                   width={COL.total}
                   text={totalKg > 0 ? String(Math.round(totalKg * 100) / 100) : ''}
-                  sub="kg"
+                  sub={t('tables.kg')}
                   textStyle={{ fontWeight: '700', color: '#2d6a2d' }}
                   style={{ borderColor: '#2d6a2d', backgroundColor: '#e8f5e9' }}
                 />
@@ -462,8 +469,8 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntr
               <View style={styles.row}>
                 <Cell
                   width={COL.type}
-                  text="working hours"
-                  sub="max 8"
+                  text={t('tables.workingHours')}
+                  sub={t('tables.max8')}
                   align="left"
                   textStyle={{ fontWeight: '700' }}
                   style={[border, { backgroundColor: '#fafafa' }]}
@@ -501,7 +508,7 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntr
                 <Cell
                   width={COL.total}
                   text={minsToHHMM(totalWorking)}
-                  sub="max 40"
+                  sub={t('tables.max40')}
                   textStyle={{ fontWeight: '700' }}
                   style={[border, { backgroundColor: '#fafafa' }]}
                 />
@@ -510,7 +517,7 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntr
               <View style={styles.row}>
                 <Cell
                   width={COL.type}
-                  text="extra hours / lisätyö"
+                  text={t('tables.extraHoursLisatyo')}
                   align="left"
                   textStyle={{ fontWeight: '700', color: '#b45309' }}
                   style={{ borderColor: '#c97d00', backgroundColor: '#fff3e0' }}
@@ -555,7 +562,7 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntr
                 <Cell
                   width={COL.total}
                   text={minsToHHMM(totalExtra)}
-                  sub="max 17/week"
+                  sub={t('tables.max17Week')}
                   textStyle={{ fontWeight: '700', color: '#b45309' }}
                   style={{ borderColor: '#c97d00', backgroundColor: '#fff3e0' }}
                 />
@@ -564,7 +571,7 @@ export function WeeklySummaryFull({ year, month, daysInMonth, entries, greenEntr
               <View style={styles.row}>
                 <View style={[styles.cell, styles.signatureCell, border, { width: totalWidth }]}>
                   <Text style={styles.cellText} numberOfLines={1}>
-                    yes, I want to work extra hours   ☐   Signature: _______________________
+                    {t('tables.signatureLine')}
                   </Text>
                 </View>
               </View>

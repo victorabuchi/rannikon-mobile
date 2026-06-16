@@ -1,6 +1,7 @@
 import { StyleSheet, Text, View } from 'react-native';
 
 import { GROUP_COLORS } from '../lib/houseGroups';
+import { useLanguage } from '../lib/i18n';
 import { COLORS, FONTS } from '../lib/theme';
 
 export function GroupPill({ group, style }) {
@@ -24,12 +25,20 @@ const ROLE_STYLE = {
   admin: { bg: '#e8f5e9', text: '#2d6a2d', border: '#a5d6a7' },
 };
 
+const ROLE_LABEL_KEY = {
+  worker: 'admin.roleWorker',
+  supervisor: 'admin.roleSupervisor',
+  housemaster: 'admin.roleHousemaster',
+  admin: 'admin.roleAdmin',
+};
+
 export function RoleBadge({ role }) {
+  const { t } = useLanguage();
   const s = ROLE_STYLE[role] || ROLE_STYLE.worker;
   return (
     <View style={[styles.pill, { backgroundColor: s.bg, borderColor: s.border }]}>
       <Text style={[styles.pillText, { color: s.text }]} numberOfLines={1}>
-        {role}
+        {t(ROLE_LABEL_KEY[role] || ROLE_LABEL_KEY.worker)}
       </Text>
     </View>
   );

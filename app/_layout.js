@@ -9,6 +9,7 @@ import {
 } from '@expo-google-fonts/dm-sans';
 
 import { AuthProvider, useAuth } from '../lib/auth';
+import { LanguageProvider } from '../lib/i18n';
 import { COLORS } from '../lib/theme';
 
 SplashScreen.preventAutoHideAsync();
@@ -52,8 +53,10 @@ export default function RootLayout() {
   });
 
   return (
-    <AuthProvider>
-      <RootNavigator fontsReady={fontsLoaded || !!fontError} />
-    </AuthProvider>
+    <LanguageProvider>
+      <AuthProvider>
+        <RootNavigator fontsReady={fontsLoaded || !!fontError} />
+      </AuthProvider>
+    </LanguageProvider>
   );
 }

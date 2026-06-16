@@ -21,6 +21,7 @@ import {
 } from '../../components/PaperTables';
 import api from '../../lib/api';
 import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
+import { useLanguage } from '../../lib/i18n';
 import { COLORS, FONTS } from '../../lib/theme';
 import { VALID_START_TIMES, computeEntry } from '../../lib/timesheet';
 
@@ -28,6 +29,7 @@ const EMPTY_FORM = { start: '', finish: '', break_mins: '30', work: '' };
 const EMPTY_GREEN_FORM = { start: '', finish: '', kg: '', what: '' };
 
 export default function DaysScreen() {
+  const { t } = useLanguage();
   const today = new Date();
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [year, setYear] = useState(today.getFullYear());
@@ -53,7 +55,7 @@ export default function DaysScreen() {
       });
       setEntries(map);
     } catch {
-      setError('Could not load timesheet entries.');
+      setError(t('days.loadError'));
     } finally {
       setLoading(false);
     }
@@ -124,7 +126,7 @@ export default function DaysScreen() {
 
   const saveEntry = async () => {
     if (!form.start || !form.finish) {
-      setFormError('Start and finish time are required');
+      setFormError(t('days.startFinishRequired'));
       return;
     }
     setSaving(true);
@@ -151,7 +153,7 @@ export default function DaysScreen() {
       }
       setEditDay(null);
     } catch (err) {
-      setFormError(err.response?.data?.error || 'Failed to save');
+      setFormError(err.response?.data?.error || t('days.failedToSave'));
     } finally {
       setSaving(false);
     }
@@ -170,7 +172,7 @@ export default function DaysScreen() {
       await loadGreenEntries();
       setConfirmDeleteDay(null);
     } catch (err) {
-      Alert.alert('Delete failed', err.response?.data?.error || 'Could not delete the entry. Please try again.');
+      Alert.alert(t('days.deleteFailedTitle'), err.response?.data?.error || t('days.deleteFailedMessage'));
     }
   };
 
@@ -215,32 +217,32 @@ export default function DaysScreen() {
               <View style={[styles.card, hasEntry ? styles.cardWithEntry : styles.cardEmpty]}>
                 <View style={styles.cardTop}>
                   <View style={styles.cardInfo}>
-                    <Text style={styles.dayLabel}>Day {day}</Text>
+                    <Text style={styles.dayLabel}>{t('days.day')} {day}</Text>
                     {hasEntry ? (
                       <View style={styles.entryInfo}>
                         <Text style={styles.timeRange}>
-                          {entry.actual_start?.slice(0, 5)} to {entry.actual_finish?.slice(0, 5)}
+                          {entry.actual_start?.slice(0, 5)} {t('common.to')} {entry.actual_finish?.slice(0, 5)}
                         </Text>
                         <View style={styles.badgeRow}>
                           <View style={[styles.badge, styles.badgeWhite]}>
-                            <Text style={[styles.badgeText, styles.badgeWhiteText]}>W: {entry.white_hours}</Text>
+                            <Text style={[styles.badgeText, styles.badgeWhiteText]}>{t('days.whiteAbbr')}: {entry.white_hours}</Text>
                           </View>
                           <View style={[styles.badge, styles.badgeOrange]}>
-                            <Text style={[styles.badgeText, styles.badgeOrangeText]}>O: {entry.orange_hours}</Text>
+                            <Text style={[styles.badgeText, styles.badgeOrangeText]}>{t('days.orangeAbbr')}: {entry.orange_hours}</Text>
                           </View>
                           <View style={[styles.badge, styles.badgeTotal]}>
-                            <Text style={[styles.badgeText, styles.badgeTotalText]}>Total: {entry.total_hours}</Text>
+                            <Text style={[styles.badgeText, styles.badgeTotalText]}>{t('days.totalAbbr')}: {entry.total_hours}</Text>
                           </View>
                           {!!greenEntries[date]?.kg_picked && (
                             <View style={[styles.badge, styles.badgeKg]}>
-                              <Text style={[styles.badgeText, styles.badgeKgText]}>KG: {greenEntries[date].kg_picked}</Text>
+                              <Text style={[styles.badgeText, styles.badgeKgText]}>{t('days.kgAbbr')}: {greenEntries[date].kg_picked}</Text>
                             </View>
                           )}
                         </View>
                         {!!entry.what_work && <Text style={styles.workText}>{entry.what_work}</Text>}
                       </View>
                     ) : (
-                      <Text style={styles.noEntry}>No entry yet</Text>
+                      <Text style={styles.noEntry}>{t('days.noEntry')}</Text>
                     )}
                   </View>
 
@@ -251,7 +253,7 @@ export default function DaysScreen() {
                         onPress={() => toggleView(day)}
                       >
                         <Text style={[styles.actionButtonText, isViewing ? styles.viewButtonActiveText : styles.viewButtonText]}>
-                          {isViewing ? 'Hide' : 'View'}
+                          {isViewing ? t('common.hide') : t('common.view')}
                         </Text>
                       </Pressable>
                     )}
@@ -260,7 +262,7 @@ export default function DaysScreen() {
                       onPress={() => toggleEdit(day)}
                     >
                       <Text style={[styles.actionButtonText, hasEntry ? styles.editButtonText : styles.addButtonText]}>
-                        {isEditing ? 'Close' : hasEntry ? 'Edit' : '+ Add'}
+                        {isEditing ? t('common.close') : hasEntry ? t('common.edit') : t('common.add')}
                       </Text>
                     </Pressable>
                     {hasEntry && (
@@ -268,7 +270,7 @@ export default function DaysScreen() {
                         style={[styles.actionButton, styles.deleteButton]}
                         onPress={() => setConfirmDeleteDay(day)}
                       >
-                        <Text style={styles.deleteButtonText}>Delete</Text>
+                        <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
                       </Pressable>
                     )}
                   </View>
@@ -279,32 +281,32 @@ export default function DaysScreen() {
                     {!!formError && <Text style={styles.formError}>{formError}</Text>}
 
                     <View style={styles.field}>
-                      <Text style={styles.label}>Actual start time</Text>
+                      <Text style={styles.label}>{t('days.actualStartTime')}</Text>
                       <TextInput
                         style={styles.input}
                         value={form.start}
                         onChangeText={(text) => setForm((f) => ({ ...f, start: text }))}
-                        placeholder="HH:MM e.g. 10:15"
+                        placeholder={t('days.startTimePlaceholder')}
                         placeholderTextColor={COLORS.textMuted}
                       />
                       {!!form.start && !VALID_START_TIMES.includes(form.start) && (
-                        <Text style={styles.warningText}>Should be 9:00, 9:15, 9:30, or 9:45</Text>
+                        <Text style={styles.warningText}>{t('days.shouldBeTime')}</Text>
                       )}
                     </View>
 
                     <View style={styles.field}>
-                      <Text style={styles.label}>Actual finish time</Text>
+                      <Text style={styles.label}>{t('days.actualFinishTime')}</Text>
                       <TextInput
                         style={styles.input}
                         value={form.finish}
                         onChangeText={(text) => setForm((f) => ({ ...f, finish: text }))}
-                        placeholder="HH:MM e.g. 20:45"
+                        placeholder={t('days.finishTimePlaceholder')}
                         placeholderTextColor={COLORS.textMuted}
                       />
                     </View>
 
                     <View style={styles.field}>
-                      <Text style={styles.label}>Total break (minutes)</Text>
+                      <Text style={styles.label}>{t('days.breakMins')}</Text>
                       <TextInput
                         style={styles.input}
                         value={form.break_mins}
@@ -312,67 +314,67 @@ export default function DaysScreen() {
                           setForm((f) => ({ ...f, break_mins: text.replace(/[^0-9]/g, '') }))
                         }
                         keyboardType="number-pad"
-                        placeholder="30"
+                        placeholder={t('days.breakPlaceholder')}
                         placeholderTextColor={COLORS.textMuted}
                       />
-                      <Text style={styles.helperText}>Min 30 min eating break</Text>
+                      <Text style={styles.helperText}>{t('days.min30Break')}</Text>
                     </View>
 
                     <View style={styles.field}>
-                      <Text style={styles.label}>What work</Text>
+                      <Text style={styles.label}>{t('days.whatWork')}</Text>
                       <TextInput
                         style={styles.input}
                         value={form.work}
                         onChangeText={(text) => setForm((f) => ({ ...f, work: text }))}
-                        placeholder="e.g. cleaning, planting"
+                        placeholder={t('days.whatWorkPlaceholder')}
                         placeholderTextColor={COLORS.textMuted}
                       />
                     </View>
 
                     <View style={styles.greenSection}>
-                      <Text style={styles.greenSectionTitle}>Berry picking (Green paper)</Text>
+                      <Text style={styles.greenSectionTitle}>{t('days.berryPickingGreenPaper')}</Text>
 
                       <View style={styles.field}>
-                        <Text style={styles.label}>Start time</Text>
+                        <Text style={styles.label}>{t('days.startTime')}</Text>
                         <TextInput
                           style={styles.input}
                           value={greenForm.start}
                           onChangeText={(text) => setGreenForm((f) => ({ ...f, start: text }))}
-                          placeholder="HH:MM"
+                          placeholder={t('days.hhmmPlaceholder')}
                           placeholderTextColor={COLORS.textMuted}
                         />
                       </View>
 
                       <View style={styles.field}>
-                        <Text style={styles.label}>Finish time</Text>
+                        <Text style={styles.label}>{t('days.finishTime')}</Text>
                         <TextInput
                           style={styles.input}
                           value={greenForm.finish}
                           onChangeText={(text) => setGreenForm((f) => ({ ...f, finish: text }))}
-                          placeholder="HH:MM"
+                          placeholder={t('days.hhmmPlaceholder')}
                           placeholderTextColor={COLORS.textMuted}
                         />
                       </View>
 
                       <View style={styles.field}>
-                        <Text style={styles.label}>Kg picked</Text>
+                        <Text style={styles.label}>{t('days.kgPicked')}</Text>
                         <TextInput
                           style={styles.input}
                           value={greenForm.kg}
                           onChangeText={(text) => setGreenForm((f) => ({ ...f, kg: text }))}
-                          placeholder="e.g. strawberries weight"
+                          placeholder={t('days.kgPickedPlaceholder')}
                           placeholderTextColor={COLORS.textMuted}
                           keyboardType="decimal-pad"
                         />
                       </View>
 
                       <View style={styles.field}>
-                        <Text style={styles.label}>What was picked</Text>
+                        <Text style={styles.label}>{t('days.whatPicked')}</Text>
                         <TextInput
                           style={styles.input}
                           value={greenForm.what}
                           onChangeText={(text) => setGreenForm((f) => ({ ...f, what: text }))}
-                          placeholder="e.g. strawberries"
+                          placeholder={t('days.whatPickedPlaceholder')}
                           placeholderTextColor={COLORS.textMuted}
                         />
                       </View>
@@ -388,7 +390,7 @@ export default function DaysScreen() {
                         onPress={saveEntry}
                         disabled={saving}
                       >
-                        <Text style={styles.saveButtonText}>{saving ? 'Saving...' : 'Save'}</Text>
+                        <Text style={styles.saveButtonText}>{saving ? t('common.saving') : t('common.save')}</Text>
                       </Pressable>
                       <Pressable
                         style={styles.cancelButton}
@@ -397,7 +399,7 @@ export default function DaysScreen() {
                           setFormError('');
                         }}
                       >
-                        <Text style={styles.cancelButtonText}>Cancel</Text>
+                        <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
                       </Pressable>
                     </View>
                   </View>
@@ -422,14 +424,14 @@ export default function DaysScreen() {
       <Modal visible={confirmDeleteDay != null} transparent animationType="fade" onRequestClose={() => setConfirmDeleteDay(null)}>
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmCard}>
-            <Text style={styles.confirmTitle}>Delete Day {confirmDeleteDay}?</Text>
-            <Text style={styles.confirmText}>This will permanently remove this entry from all papers.</Text>
+            <Text style={styles.confirmTitle}>{t('days.deleteDayTitle')} {confirmDeleteDay}?</Text>
+            <Text style={styles.confirmText}>{t('days.deleteDayDesc')}</Text>
             <View style={styles.confirmButtons}>
               <Pressable style={styles.confirmCancelButton} onPress={() => setConfirmDeleteDay(null)}>
-                <Text style={styles.confirmCancelText}>Cancel</Text>
+                <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
               </Pressable>
               <Pressable style={styles.confirmDeleteButton} onPress={() => deleteEntry(confirmDeleteDay)}>
-                <Text style={styles.confirmDeleteText}>Yes, delete</Text>
+                <Text style={styles.confirmDeleteText}>{t('days.yesDelete')}</Text>
               </Pressable>
             </View>
           </View>
@@ -440,41 +442,33 @@ export default function DaysScreen() {
 }
 
 function InlineDayView({ day, year, month, entry, entries, greenEntries }) {
+  const { t } = useLanguage();
   return (
     <View style={styles.inlineView}>
-      <Text style={styles.inlineTitle}>WHITE PAPER: WORK PAID BY THE HOUR</Text>
-      <Text style={styles.inlineSubtitle}>8 HOURS PER DAY / 40 HOURS PER WEEK</Text>
+      <Text style={styles.inlineTitle}>{t('days.whitePaperHeader')}</Text>
+      <Text style={styles.inlineSubtitle}>{t('days.hoursPerDayWeek')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
         <WhitePaperTable days={[day]} year={year} month={month} entries={entries} />
       </ScrollView>
-      <Text style={styles.inlineItalic}>
-        When you have worked 4 hours, You need to have an eating break, minimum of 30 mins. START WORK 9:00, 9:15,
-        9:30 or 9:45.
-      </Text>
+      <Text style={styles.inlineItalic}>{t('days.eatingBreakFull')}</Text>
 
-      <Text style={[styles.inlineTitle, { color: '#b45309' }]}>ORANGE PAPER: EXTRAWORK PAID BY THE HOUR</Text>
-      <Text style={styles.inlineSubtitle}>
-        MAXIMUM 3 HOURS PER DAY (MONDAY-FRIDAY) | MAXIMUM 11 HOURS PER DAY (SATURDAY)
-      </Text>
+      <Text style={[styles.inlineTitle, { color: '#b45309' }]}>{t('days.orangePaperHeader')}</Text>
+      <Text style={styles.inlineSubtitle}>{t('days.maxHoursCombined')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
         <OrangePaperTable days={[day]} year={year} month={month} entries={entries} />
       </ScrollView>
-      <Text style={styles.inlineItalic}>
-        Start work 9:00, 9:15, 9:30 or 9:45. Work does not start 9:05, 9:10, 9:20, 9:25 etc.
-      </Text>
+      <Text style={styles.inlineItalic}>{t('days.startWorkNote')}</Text>
 
-      <Text style={[styles.inlineTitle, { color: '#1565c0' }]}>WEEKLY SUMMARY</Text>
+      <Text style={[styles.inlineTitle, { color: '#1565c0' }]}>{t('days.weeklySummaryHeader')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
         <InlineWeeklySummary entry={entry} />
       </ScrollView>
 
-      <Text style={[styles.inlineTitle, { color: '#2d6a2d' }]}>
-        GREEN PAPER: TIME USED FOR PICKUP (SALARY PAID BY KILOS)
-      </Text>
+      <Text style={[styles.inlineTitle, { color: '#2d6a2d' }]}>{t('days.greenPaperHeader')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
         <GreenPaperTable days={[day]} year={year} month={month} greenEntries={greenEntries} />
       </ScrollView>
-      <Text style={[styles.inlineItalic, { marginBottom: 0 }]}>HOX, NEED TO PICKUP 10 KILO PER HOUR!</Text>
+      <Text style={[styles.inlineItalic, { marginBottom: 0 }]}>{t('days.kiloPerHourNote')}</Text>
     </View>
   );
 }

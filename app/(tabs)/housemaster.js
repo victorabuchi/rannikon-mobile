@@ -15,16 +15,17 @@ import {
 import api from '../../lib/api';
 import { formatDateMedium } from '../../lib/dates';
 import { exportHousemasterWorklogExcel, exportHousemasterWorklogPdf } from '../../lib/exporters';
+import { useLanguage } from '../../lib/i18n';
 import { COLORS, FONTS } from '../../lib/theme';
 
 const TABLE_HEADERS = [
-  { key: 'work', label: 'Work#', width: 56 },
-  { key: 'name', label: 'Name', width: 130 },
-  { key: 'start', label: 'Start', width: 60 },
-  { key: 'finish', label: 'Finish', width: 60 },
-  { key: 'break', label: 'Break', width: 64 },
-  { key: 'total', label: 'Total hrs', width: 74 },
-  { key: 'work_done', label: 'Work done', width: 160 },
+  { key: 'work', labelKey: 'housemaster.colWorkNum', width: 56 },
+  { key: 'name', labelKey: 'housemaster.colName', width: 130 },
+  { key: 'start', labelKey: 'housemaster.colStart', width: 60 },
+  { key: 'finish', labelKey: 'housemaster.colFinish', width: 60 },
+  { key: 'break', labelKey: 'housemaster.colBreak', width: 64 },
+  { key: 'total', labelKey: 'housemaster.colTotalHrs', width: 74 },
+  { key: 'work_done', labelKey: 'housemaster.colWorkDone', width: 160 },
 ];
 
 function parseLogs(wl) {
@@ -40,6 +41,7 @@ function parseLogs(wl) {
 }
 
 function WorklogCard({ wl, onDelete }) {
+  const { t } = useLanguage();
   const [busy, setBusy] = useState(false);
   const logs = parseLogs(wl);
   const dateLabel = wl.session_date ? formatDateMedium(wl.session_date) : '—';
@@ -49,7 +51,7 @@ function WorklogCard({ wl, onDelete }) {
     try {
       await exportHousemasterWorklogPdf({ worklog: wl, logs, dateLabel });
     } catch {
-      Alert.alert('Export failed', 'Could not generate the PDF. Please try again.');
+      Alert.alert(t('common.exportFailed'), t('common.exportPdfError'));
     } finally {
       setBusy(false);
     }
@@ -60,7 +62,7 @@ function WorklogCard({ wl, onDelete }) {
     try {
       await exportHousemasterWorklogExcel({ worklog: wl, logs, dateLabel });
     } catch {
-      Alert.alert('Export failed', 'Could not generate the Excel file. Please try again.');
+      Alert.alert(t('common.exportFailed'), t('common.exportExcelError'));
     } finally {
       setBusy(false);
     }
@@ -69,12 +71,12 @@ function WorklogCard({ wl, onDelete }) {
   const handleShare = async () => {
     const lines = logs
       .map((r) => (
-        `#${r.worker_number} ${r.worker_name || ''} — ${r.start_time?.slice(0, 5) || '?'} to ${r.finish_time?.slice(0, 5) || '?'} — ${r.total_hours || '?'} hrs`
+        `#${r.worker_number} ${r.worker_name || ''} — ${r.start_time?.slice(0, 5) || '?'} ${t('common.to')} ${r.finish_time?.slice(0, 5) || '?'} — ${r.total_hours || '?'} hrs`
       ))
       .join('\n');
-    const text = `Rannikon Puutarha Work Log - ${wl.house_group} - ${dateLabel}\n\n${lines}`;
+    const text = `${t('housemaster.shareTextTitle')} - ${wl.house_group} - ${dateLabel}\n\n${lines}`;
     try {
-      await Share.share({ message: text, title: `Work Log — ${wl.house_group}` });
+      await Share.share({ message: text, title: `${t('housemaster.shareTitlePrefix')} — ${wl.house_group}` });
     } catch {
       // user dismissed the share sheet
     }
@@ -86,7 +88,7 @@ function WorklogCard({ wl, onDelete }) {
         <View style={styles.cardHeaderText}>
           <Text style={styles.cardTitle}>{wl.house_group}</Text>
           <Text style={styles.cardSubtitle}>
-            {dateLabel}   |   {logs.length} worker{logs.length !== 1 ? 's' : ''}
+            {dateLabel}   |   {logs.length} {logs.length !== 1 ? t('housemaster.workers') : t('housemaster.worker')}
           </Text>
         </View>
         <View style={styles.actionsRow}>
@@ -95,16 +97,16 @@ function WorklogCard({ wl, onDelete }) {
           ) : (
             <>
               <Pressable style={styles.outlineButton} onPress={handlePdf}>
-                <Text style={styles.outlineButtonText}>PDF</Text>
+                <Text style={styles.outlineButtonText}>{t('common.pdf')}</Text>
               </Pressable>
               <Pressable style={styles.outlineButton} onPress={handleExcel}>
-                <Text style={styles.outlineButtonText}>Excel</Text>
+                <Text style={styles.outlineButtonText}>{t('common.excel')}</Text>
               </Pressable>
               <Pressable style={styles.outlineButton} onPress={handleShare}>
-                <Text style={styles.outlineButtonText}>Share</Text>
+                <Text style={styles.outlineButtonText}>{t('common.share')}</Text>
               </Pressable>
               <Pressable style={[styles.actionButton, styles.deleteButton]} onPress={() => onDelete(wl.id)}>
-                <Text style={styles.deleteButtonText}>Delete</Text>
+                <Text style={styles.deleteButtonText}>{t('common.delete')}</Text>
               </Pressable>
             </>
           )}
@@ -112,14 +114,14 @@ function WorklogCard({ wl, onDelete }) {
       </View>
 
       {logs.length === 0 ? (
-        <Text style={styles.emptyText}>No worker data</Text>
+        <Text style={styles.emptyText}>{t('housemaster.noWorkerData')}</Text>
       ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator>
           <View>
             <View style={styles.tableHeaderRow}>
               {TABLE_HEADERS.map((h) => (
                 <View key={h.key} style={[styles.th, { width: h.width }]}>
-                  <Text style={styles.thText}>{h.label}</Text>
+                  <Text style={styles.thText}>{t(h.labelKey)}</Text>
                 </View>
               ))}
             </View>
@@ -136,7 +138,7 @@ function WorklogCard({ wl, onDelete }) {
                 </View>
                 <View style={[styles.td, { width: TABLE_HEADERS[1].width }]}>
                   <Text style={r.worker_name ? styles.tdText : styles.tdMuted} numberOfLines={1}>
-                    {r.worker_name || 'Unknown'}
+                    {r.worker_name || t('common.unknown')}
                   </Text>
                 </View>
                 <View style={[styles.td, { width: TABLE_HEADERS[2].width }]}>
@@ -149,7 +151,7 @@ function WorklogCard({ wl, onDelete }) {
                 </View>
                 <View style={[styles.td, { width: TABLE_HEADERS[4].width }]}>
                   <Text style={styles.tdBreak}>
-                    {r.total_break_mins > 0 ? `${r.total_break_mins} min` : ''}
+                    {r.total_break_mins > 0 ? `${r.total_break_mins} ${t('sup.min')}` : ''}
                   </Text>
                 </View>
                 <View style={[styles.td, { width: TABLE_HEADERS[5].width }]}>
@@ -170,6 +172,7 @@ function WorklogCard({ wl, onDelete }) {
 }
 
 export default function HousemasterScreen() {
+  const { t } = useLanguage();
   const [worklogs, setWorklogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -211,7 +214,7 @@ export default function HousemasterScreen() {
       setWorklogs((wls) => wls.filter((w) => w.id !== id));
       setConfirmDeleteId(null);
     } catch (err) {
-      Alert.alert('Delete failed', err.response?.data?.error || 'Could not delete the worklog. Please try again.');
+      Alert.alert(t('housemaster.deleteFailedTitle'), err.response?.data?.error || t('housemaster.deleteFailedMessage'));
     }
   };
 
@@ -233,19 +236,19 @@ export default function HousemasterScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>Work logs</Text>
-            <Text style={styles.subtitle}>Work logs sent to you from the admin</Text>
+            <Text style={styles.title}>{t('housemaster.workLogs')}</Text>
+            <Text style={styles.subtitle}>{t('housemaster.workLogsSentDesc')}</Text>
           </View>
           <Pressable style={styles.outlineButton} onPress={loadWorklogs}>
-            <Text style={styles.outlineButtonText}>Refresh</Text>
+            <Text style={styles.outlineButtonText}>{t('common.refresh')}</Text>
           </Pressable>
         </View>
 
         {worklogs.length === 0 ? (
           <View style={[styles.card, styles.emptyCard]}>
-            <Text style={styles.emptyTitle}>No work logs received yet</Text>
+            <Text style={styles.emptyTitle}>{t('housemaster.noLogsYet')}</Text>
             <Text style={styles.emptySubtitle}>
-              When the admin sends a work log to your group, it will appear here.
+              {t('housemaster.noLogsDesc')}
             </Text>
           </View>
         ) : (
@@ -261,14 +264,14 @@ export default function HousemasterScreen() {
       >
         <View style={styles.confirmOverlay}>
           <View style={styles.confirmCard}>
-            <Text style={styles.confirmTitle}>Delete worklog?</Text>
-            <Text style={styles.confirmText}>This will permanently remove this worklog.</Text>
+            <Text style={styles.confirmTitle}>{t('housemaster.deleteWorklogTitle')}</Text>
+            <Text style={styles.confirmText}>{t('housemaster.deleteWorklogDesc')}</Text>
             <View style={styles.confirmButtons}>
               <Pressable style={styles.confirmCancelButton} onPress={() => setConfirmDeleteId(null)}>
-                <Text style={styles.confirmCancelText}>Cancel</Text>
+                <Text style={styles.confirmCancelText}>{t('common.cancel')}</Text>
               </Pressable>
               <Pressable style={styles.confirmDeleteButton} onPress={() => deleteWorklog(confirmDeleteId)}>
-                <Text style={styles.confirmDeleteText}>Delete</Text>
+                <Text style={styles.confirmDeleteText}>{t('common.delete')}</Text>
               </Pressable>
             </View>
           </View>

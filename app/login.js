@@ -12,12 +12,15 @@ import {
 } from 'react-native';
 import { Link } from 'expo-router';
 
+import LanguageSelector from '../components/LanguageSelector';
 import api from '../lib/api';
 import { useAuth } from '../lib/auth';
+import { useLanguage } from '../lib/i18n';
 import { COLORS, FONTS } from '../lib/theme';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
+  const { t } = useLanguage();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -25,7 +28,7 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password) {
-      setError('Enter your work number or email and password.');
+      setError(t('auth.enterCredentials'));
       return;
     }
 
@@ -45,8 +48,7 @@ export default function LoginScreen() {
       await signIn(data.token, data.worker);
     } catch (err) {
       setError(
-        err.response?.data?.message ||
-          'Could not sign in. Check your details and try again.'
+        err.response?.data?.message || t('auth.loginError')
       );
     } finally {
       setSubmitting(false);
@@ -54,7 +56,7 @@ export default function LoginScreen() {
   };
 
   const handleGoogleSignIn = () => {
-    Alert.alert('Google sign-in', 'Google sign-in is not available yet.');
+    Alert.alert(t('auth.googleSignInTitle'), t('auth.googleNotAvailable'));
   };
 
   return (
@@ -62,15 +64,18 @@ export default function LoginScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
+      <View style={styles.langBar}>
+        <LanguageSelector />
+      </View>
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
-        <Text style={styles.title}>Rannikon</Text>
-        <Text style={styles.subtitle}>Sign in to your account</Text>
+        <Text style={styles.title}>{t('auth.appName')}</Text>
+        <Text style={styles.subtitle}>{t('auth.signInSubtitle')}</Text>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Work number or email</Text>
+          <Text style={styles.label}>{t('auth.workNumberOrEmail')}</Text>
           <TextInput
             style={styles.input}
             value={identifier}
@@ -78,19 +83,19 @@ export default function LoginScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             keyboardType="email-address"
-            placeholder="e.g. 12345 or you@example.com"
+            placeholder={t('auth.workNumberOrEmailPlaceholder')}
             placeholderTextColor={COLORS.textMuted}
           />
         </View>
 
         <View style={styles.field}>
-          <Text style={styles.label}>Password</Text>
+          <Text style={styles.label}>{t('auth.password')}</Text>
           <TextInput
             style={styles.input}
             value={password}
             onChangeText={setPassword}
             secureTextEntry
-            placeholder="Password"
+            placeholder={t('auth.password')}
             placeholderTextColor={COLORS.textMuted}
           />
         </View>
@@ -107,18 +112,18 @@ export default function LoginScreen() {
           disabled={submitting}
         >
           <Text style={styles.buttonText}>
-            {submitting ? 'Signing in...' : 'Sign in'}
+            {submitting ? t('auth.signingIn') : t('auth.signIn')}
           </Text>
         </Pressable>
 
         <Pressable style={styles.googleButton} onPress={handleGoogleSignIn}>
-          <Text style={styles.googleButtonText}>Continue with Google</Text>
+          <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
         </Pressable>
 
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don&apos;t have an account? </Text>
+          <Text style={styles.footerText}>{t('auth.noAccount')}</Text>
           <Link href="/register" style={styles.link}>
-            Register
+            {t('auth.registerLink')}
           </Link>
         </View>
       </ScrollView>
@@ -130,6 +135,12 @@ const styles = StyleSheet.create({
   flex: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  langBar: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingHorizontal: 16,
+    paddingTop: 8,
   },
   container: {
     flexGrow: 1,

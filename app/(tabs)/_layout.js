@@ -1,7 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
 import { Tabs } from 'expo-router';
 
+import LanguageSelector from '../../components/LanguageSelector';
 import { useAuth } from '../../lib/auth';
+import { useLanguage } from '../../lib/i18n';
 import { COLORS, FONTS } from '../../lib/theme';
 
 const TAB_ACTIVE_COLOR = '#2d6a2d';
@@ -13,6 +15,7 @@ function tabIcon(name) {
 
 export default function TabsLayout() {
   const { worker } = useAuth();
+  const { t } = useLanguage();
   const role = worker?.role;
 
   return (
@@ -21,6 +24,7 @@ export default function TabsLayout() {
         headerStyle: { backgroundColor: COLORS.background },
         headerTitleStyle: { fontFamily: FONTS.bold, color: COLORS.text },
         headerShadowVisible: false,
+        headerRight: () => <LanguageSelector />,
         tabBarStyle: {
           backgroundColor: COLORS.background,
           borderTopColor: COLORS.border,
@@ -32,16 +36,16 @@ export default function TabsLayout() {
     >
       <Tabs.Screen
         name="days"
-        options={{ title: 'Days', tabBarIcon: tabIcon('calendar-outline') }}
+        options={{ title: t('tabs.days'), tabBarIcon: tabIcon('calendar-outline') }}
       />
       <Tabs.Screen
         name="papers"
-        options={{ title: 'Papers', tabBarIcon: tabIcon('document-text-outline') }}
+        options={{ title: t('tabs.papers'), tabBarIcon: tabIcon('document-text-outline') }}
       />
       <Tabs.Screen
         name="supervisor"
         options={{
-          title: 'Supervisor',
+          title: t('tabs.supervisor'),
           tabBarIcon: tabIcon('people-outline'),
           href: role === 'supervisor' || role === 'admin' ? undefined : null,
         }}
@@ -49,7 +53,7 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="admin"
         options={{
-          title: 'Admin',
+          title: t('tabs.admin'),
           tabBarIcon: tabIcon('settings-outline'),
           href: role === 'admin' ? undefined : null,
         }}
@@ -57,14 +61,14 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="housemaster"
         options={{
-          title: 'Housemaster',
+          title: t('tabs.housemaster'),
           tabBarIcon: tabIcon('home-outline'),
           href: role === 'housemaster' || role === 'admin' ? undefined : null,
         }}
       />
       <Tabs.Screen
         name="profile"
-        options={{ title: 'Profile', tabBarIcon: tabIcon('person-outline') }}
+        options={{ title: t('tabs.profile'), tabBarIcon: tabIcon('person-outline') }}
       />
     </Tabs>
   );

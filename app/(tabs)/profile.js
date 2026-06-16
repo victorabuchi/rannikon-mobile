@@ -10,14 +10,18 @@ import {
 } from 'react-native';
 
 import { useAuth } from '../../lib/auth';
+import { useLanguage } from '../../lib/i18n';
 import { COLORS, FONTS } from '../../lib/theme';
 
-function formatRole(role) {
-  if (!role) return '';
-  return role.charAt(0).toUpperCase() + role.slice(1);
-}
+const ROLE_LABEL_KEY = {
+  worker: 'profile.roleWorker',
+  supervisor: 'profile.roleSupervisor',
+  housemaster: 'profile.roleHousemaster',
+  admin: 'profile.roleAdmin',
+};
 
 export default function ProfileScreen() {
+  const { t } = useLanguage();
   const { worker, signOut, refreshWorker } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
@@ -67,16 +71,18 @@ export default function ProfileScreen() {
       </View>
 
       <Text style={styles.name}>{worker.full_name}</Text>
-      {!!worker.role && <Text style={styles.role}>{formatRole(worker.role)}</Text>}
+      {!!worker.role && (
+        <Text style={styles.role}>{t(ROLE_LABEL_KEY[worker.role] || ROLE_LABEL_KEY.worker)}</Text>
+      )}
 
       <View style={styles.card}>
         <View style={styles.row}>
-          <Text style={styles.label}>Work number</Text>
+          <Text style={styles.label}>{t('profile.workNumber')}</Text>
           <Text style={styles.value}>{worker.work_number}</Text>
         </View>
         <View style={styles.divider} />
         <View style={styles.row}>
-          <Text style={styles.label}>Email</Text>
+          <Text style={styles.label}>{t('profile.email')}</Text>
           <Text style={styles.value}>{worker.email}</Text>
         </View>
       </View>
@@ -91,7 +97,7 @@ export default function ProfileScreen() {
         disabled={signingOut}
       >
         <Text style={styles.signOutButtonText}>
-          {signingOut ? 'Signing out...' : 'Sign out'}
+          {signingOut ? t('profile.signingOut') : t('profile.signOut')}
         </Text>
       </Pressable>
     </ScrollView>
