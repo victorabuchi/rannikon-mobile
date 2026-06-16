@@ -1,6 +1,6 @@
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import {
+  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -18,8 +18,6 @@ import { useAuth } from '../lib/auth';
 import { useLanguage } from '../lib/i18n';
 import { COLORS, FONTS } from '../lib/theme';
 
-const WEB_CLIENT_ID = '380566128812-qqg1ivithniltf4f1kmqcskb3k4686so.apps.googleusercontent.com';
-
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const { t } = useLanguage();
@@ -27,14 +25,6 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [googleBusy, setGoogleBusy] = useState(false);
-
-  useEffect(() => {
-    GoogleSignin.configure({
-      webClientId: WEB_CLIENT_ID,
-      offlineAccess: true,
-    });
-  }, []);
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password) {
@@ -63,31 +53,11 @@ export default function LoginScreen() {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    setError('');
-    setGoogleBusy(true);
-    try {
-      await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
-      const result = await GoogleSignin.signIn();
-      if (result.type !== 'success') return;
-      const idToken = result.data?.idToken;
-      if (!idToken) {
-        setError(t('auth.loginError'));
-        return;
-      }
-      const { data } = await api.post('/api/auth/google/mobile', { idToken });
-      await signIn(data.token, data.worker);
-    } catch (err) {
-      if (err.code === statusCodes.SIGN_IN_CANCELLED) {
-        // user dismissed — no error shown
-      } else if (err.code === statusCodes.IN_PROGRESS) {
-        // sign in already in progress
-      } else {
-        setError(err.response?.data?.error || t('auth.loginError'));
-      }
-    } finally {
-      setGoogleBusy(false);
-    }
+  const handleGoogleSignIn = () => {
+    Alert.alert(
+      t('auth.googleSignInTitle'),
+      'Google sign in available in the full app build.'
+    );
   };
 
   return (
@@ -148,20 +118,13 @@ export default function LoginScreen() {
         </Pressable>
 
         <Pressable
-          style={({ pressed }) => [
-            styles.googleButton,
-            pressed && styles.googleButtonPressed,
-            googleBusy && styles.buttonDisabled,
-          ]}
+          style={({ pressed }) => [styles.googleButton, pressed && styles.googleButtonPressed]}
           onPress={handleGoogleSignIn}
-          disabled={googleBusy}
         >
           <View style={styles.googleLogo}>
-            <Text style={styles.googleLogoBlue}>G</Text>
+            <Text style={styles.googleLogoText}>G</Text>
           </View>
-          <Text style={styles.googleButtonText}>
-            {googleBusy ? t('auth.signingIn') : t('auth.continueWithGoogle')}
-          </Text>
+          <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
         </Pressable>
 
         <View style={styles.footer}>
@@ -275,7 +238,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  googleLogoBlue: {
+  googleLogoText: {
     fontFamily: FONTS.bold,
     fontSize: 13,
     color: COLORS.white,
