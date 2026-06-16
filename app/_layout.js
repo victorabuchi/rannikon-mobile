@@ -10,20 +10,24 @@ import {
 
 import { AuthProvider, useAuth } from '../lib/auth';
 import { LanguageProvider } from '../lib/i18n';
+import { OnboardingProvider, useOnboarding } from '../lib/onboarding';
 import { COLORS } from '../lib/theme';
 
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator({ fontsReady }) {
   const { token, isLoading } = useAuth();
+  const { onboardingDone } = useOnboarding();
+
+  const ready = fontsReady && !isLoading && onboardingDone !== null;
 
   useEffect(() => {
-    if (fontsReady && !isLoading) {
+    if (ready) {
       SplashScreen.hideAsync();
     }
-  }, [fontsReady, isLoading]);
+  }, [ready]);
 
-  if (!fontsReady || isLoading) {
+  if (!ready) {
     return null;
   }
 
@@ -34,10 +38,13 @@ function RootNavigator({ fontsReady }) {
         contentStyle: { backgroundColor: COLORS.background },
       }}
     >
-      <Stack.Protected guard={!!token}>
+      <Stack.Protected guard={!onboardingDone}>
+        <Stack.Screen name="onboarding" options={{ gestureEnabled: false, animation: 'none' }} />
+      </Stack.Protected>
+      <Stack.Protected guard={onboardingDone && !!token}>
         <Stack.Screen name="(tabs)" />
       </Stack.Protected>
-      <Stack.Protected guard={!token}>
+      <Stack.Protected guard={onboardingDone && !token}>
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
       </Stack.Protected>
@@ -54,9 +61,11 @@ export default function RootLayout() {
 
   return (
     <LanguageProvider>
-      <AuthProvider>
-        <RootNavigator fontsReady={fontsLoaded || !!fontError} />
-      </AuthProvider>
+      <OnboardingProvider>
+        <AuthProvider>
+          <RootNavigator fontsReady={fontsLoaded || !!fontError} />
+        </AuthProvider>
+      </OnboardingProvider>
     </LanguageProvider>
   );
 }
