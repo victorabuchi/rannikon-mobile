@@ -28,6 +28,22 @@ import { VALID_START_TIMES, computeEntry } from '../../lib/timesheet';
 const EMPTY_FORM = { start: '', finish: '', break_mins: '30', work: '' };
 const EMPTY_GREEN_FORM = { start: '', finish: '', kg: '', what: '' };
 
+function parseTimeInput(val) {
+  if (!val) return '';
+  const clean = val.replace(/[.,\s]/g, ':');
+  const parts = clean.split(':');
+  if (parts.length >= 2) {
+    const h = parts[0].padStart(2, '0');
+    const m = parts[1].padStart(2, '0');
+    return h + ':' + m;
+  }
+  if (clean.replace(':', '').length === 4) {
+    const d = clean.replace(':', '');
+    return d.slice(0, 2) + ':' + d.slice(2);
+  }
+  return val;
+}
+
 export default function DaysScreen() {
   const { t } = useLanguage();
   const today = new Date();
@@ -124,24 +140,48 @@ export default function DaysScreen() {
     setViewDay((current) => (current === day ? null : day));
   };
 
-  const saveEntry = async () => {
-    if (!form.start || !form.finish) {
-      setFormError(t('days.startFinishRequired'));
-      return;
+  const validateForm = () => {
+    if (!form.start && !form.finish && !form.work && !greenForm.start && !greenForm.finish && !greenForm.kg && !greenForm.what) {
+      return 'Please enter your work details or berry picking details for this day.';
     }
+    if (form.start && !form.finish) {
+      return 'You entered a start time for field work — please also enter the finish time.';
+    }
+    if (!form.start && form.finish) {
+      return 'You entered a finish time for field work — please also enter the start time.';
+    }
+    if (greenForm.start && !greenForm.finish) {
+      return 'You entered a berry picking start time — please also enter the finish time.';
+    }
+    if (!greenForm.start && greenForm.finish) {
+      return 'You entered a berry picking finish time — please also enter the start time.';
+    }
+    if (greenForm.kg && !greenForm.start && !greenForm.finish) {
+      return 'You entered kg picked — please also enter the start and finish time for berry picking.';
+    }
+    return null;
+  };
+
+  const saveEntry = async () => {
+    const validationError = validateForm();
+    if (validationError) { setFormError(validationError); return; }
     setSaving(true);
     setFormError('');
     try {
       const date = formatDate(year, month, editDay);
-      await api.post('/api/timesheet/entry', {
-        entry_date: date,
-        actual_start: form.start,
-        actual_finish: form.finish,
-        what_work: form.work,
-        break_mins: parseInt(form.break_mins, 10) || 30,
-      });
-      await loadEntries();
-      if (greenForm.start || greenForm.finish || greenForm.kg || greenForm.what) {
+      const hasFieldWork = form.start && form.finish;
+      const hasGreenWork = greenForm.start || greenForm.finish || greenForm.kg || greenForm.what;
+      if (hasFieldWork) {
+        await api.post('/api/timesheet/entry', {
+          entry_date: date,
+          actual_start: form.start,
+          actual_finish: form.finish,
+          what_work: form.work,
+          break_mins: parseInt(form.break_mins, 10) || 30,
+        });
+        await loadEntries();
+      }
+      if (hasGreenWork) {
         await api.post('/api/green/entry', {
           entry_date: `${date}T12:00:00.000Z`,
           start_time: greenForm.start || null,
@@ -286,6 +326,7 @@ export default function DaysScreen() {
                         style={styles.input}
                         value={form.start}
                         onChangeText={(text) => setForm((f) => ({ ...f, start: text }))}
+                        onBlur={() => setForm((f) => ({ ...f, start: parseTimeInput(f.start) }))}
                         placeholder={t('days.startTimePlaceholder')}
                         placeholderTextColor={COLORS.textMuted}
                       />
@@ -300,6 +341,7 @@ export default function DaysScreen() {
                         style={styles.input}
                         value={form.finish}
                         onChangeText={(text) => setForm((f) => ({ ...f, finish: text }))}
+                        onBlur={() => setForm((f) => ({ ...f, finish: parseTimeInput(f.finish) }))}
                         placeholder={t('days.finishTimePlaceholder')}
                         placeholderTextColor={COLORS.textMuted}
                       />
@@ -340,6 +382,7 @@ export default function DaysScreen() {
                           style={styles.input}
                           value={greenForm.start}
                           onChangeText={(text) => setGreenForm((f) => ({ ...f, start: text }))}
+                          onBlur={() => setGreenForm((f) => ({ ...f, start: parseTimeInput(f.start) }))}
                           placeholder={t('days.hhmmPlaceholder')}
                           placeholderTextColor={COLORS.textMuted}
                         />
@@ -351,6 +394,7 @@ export default function DaysScreen() {
                           style={styles.input}
                           value={greenForm.finish}
                           onChangeText={(text) => setGreenForm((f) => ({ ...f, finish: text }))}
+                          onBlur={() => setGreenForm((f) => ({ ...f, finish: parseTimeInput(f.finish) }))}
                           placeholder={t('days.hhmmPlaceholder')}
                           placeholderTextColor={COLORS.textMuted}
                         />
