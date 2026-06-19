@@ -30,17 +30,16 @@ const EMPTY_GREEN_FORM = { start: '', finish: '', kg: '', what: '' };
 
 function parseTimeInput(val) {
   if (!val) return '';
-  const clean = val.replace(/[.,\s]/g, ':');
+  const clean = val.replace(/[.,]/g, ':');
   const parts = clean.split(':');
   if (parts.length >= 2) {
-    const h = parts[0].padStart(2, '0');
-    const m = parts[1].padStart(2, '0');
+    const h = String(parseInt(parts[0]) || 0).padStart(2, '0');
+    const m = String(parseInt(parts[1]) || 0).padStart(2, '0');
     return h + ':' + m;
   }
-  if (clean.replace(':', '').length === 4) {
-    const d = clean.replace(':', '');
-    return d.slice(0, 2) + ':' + d.slice(2);
-  }
+  const digits = clean.replace(/\D/g, '');
+  if (digits.length === 3) return '0' + digits[0] + ':' + digits.slice(1);
+  if (digits.length === 4) return digits.slice(0, 2) + ':' + digits.slice(2);
   return val;
 }
 
@@ -202,12 +201,8 @@ export default function DaysScreen() {
   const deleteEntry = async (day) => {
     const date = formatDate(year, month, day);
     try {
-      await api.delete(`/api/timesheet/entry/${date}`);
-      try {
-        await api.delete(`/api/green/entry/${date}T12:00:00.000Z`);
-      } catch {
-        // no green entry for this day - ignore
-      }
+      if (entries[date]) await api.delete(`/api/timesheet/entry/${date}`);
+      if (greenEntries[date]) await api.delete(`/api/green/entry/${date}T12:00:00.000Z`);
       await loadEntries();
       await loadGreenEntries();
       setConfirmDeleteDay(null);
@@ -250,11 +245,13 @@ export default function DaysScreen() {
             const date = formatDate(year, month, day);
             const entry = entries[date];
             const hasEntry = !!entry;
+            const hasGreenEntry = !!greenEntries[date];
+            const hasAnyEntry = hasEntry || hasGreenEntry;
             const isEditing = editDay === day;
             const isViewing = viewDay === day;
 
             return (
-              <View style={[styles.card, hasEntry ? styles.cardWithEntry : styles.cardEmpty]}>
+              <View style={[styles.card, hasAnyEntry ? styles.cardWithEntry : styles.cardEmpty]}>
                 <View style={styles.cardTop}>
                   <View style={styles.cardInfo}>
                     <Text style={styles.dayLabel}>{t('days.day')} {day}</Text>
@@ -273,7 +270,7 @@ export default function DaysScreen() {
                           <View style={[styles.badge, styles.badgeTotal]}>
                             <Text style={[styles.badgeText, styles.badgeTotalText]}>{t('days.totalAbbr')}: {entry.total_hours}</Text>
                           </View>
-                          {!!greenEntries[date]?.kg_picked && (
+                          {greenEntries[date]?.kg_picked != null && (
                             <View style={[styles.badge, styles.badgeKg]}>
                               <Text style={[styles.badgeText, styles.badgeKgText]}>{t('days.kgAbbr')}: {greenEntries[date].kg_picked}</Text>
                             </View>
@@ -281,13 +278,29 @@ export default function DaysScreen() {
                         </View>
                         {!!entry.what_work && <Text style={styles.workText}>{entry.what_work}</Text>}
                       </View>
+                    ) : hasGreenEntry ? (
+                      <View style={styles.entryInfo}>
+                        {!!greenEntries[date]?.start_time && (
+                          <Text style={styles.timeRange}>
+                            {greenEntries[date].start_time?.slice(0, 5)} {t('common.to')} {greenEntries[date].finish_time?.slice(0, 5)}
+                          </Text>
+                        )}
+                        <View style={styles.badgeRow}>
+                          {greenEntries[date]?.kg_picked != null && (
+                            <View style={[styles.badge, styles.badgeKg]}>
+                              <Text style={[styles.badgeText, styles.badgeKgText]}>{t('days.kgAbbr')}: {greenEntries[date].kg_picked}</Text>
+                            </View>
+                          )}
+                        </View>
+                        {!!greenEntries[date]?.what_picked && <Text style={styles.workText}>{greenEntries[date].what_picked}</Text>}
+                      </View>
                     ) : (
                       <Text style={styles.noEntry}>{t('days.noEntry')}</Text>
                     )}
                   </View>
 
                   <View style={styles.actions}>
-                    {hasEntry && (
+                    {hasAnyEntry && (
                       <Pressable
                         style={[styles.actionButton, isViewing ? styles.viewButtonActive : styles.viewButton]}
                         onPress={() => toggleView(day)}
@@ -298,14 +311,14 @@ export default function DaysScreen() {
                       </Pressable>
                     )}
                     <Pressable
-                      style={[styles.actionButton, hasEntry ? styles.editButton : styles.addButton]}
+                      style={[styles.actionButton, hasAnyEntry ? styles.editButton : styles.addButton]}
                       onPress={() => toggleEdit(day)}
                     >
-                      <Text style={[styles.actionButtonText, hasEntry ? styles.editButtonText : styles.addButtonText]}>
-                        {isEditing ? t('common.close') : hasEntry ? t('common.edit') : t('common.add')}
+                      <Text style={[styles.actionButtonText, hasAnyEntry ? styles.editButtonText : styles.addButtonText]}>
+                        {isEditing ? t('common.close') : hasAnyEntry ? t('common.edit') : t('common.add')}
                       </Text>
                     </Pressable>
-                    {hasEntry && (
+                    {hasAnyEntry && (
                       <Pressable
                         style={[styles.actionButton, styles.deleteButton]}
                         onPress={() => setConfirmDeleteDay(day)}
@@ -325,7 +338,7 @@ export default function DaysScreen() {
                       <TextInput
                         style={styles.input}
                         value={form.start}
-                        onChangeText={(text) => setForm((f) => ({ ...f, start: text }))}
+                        onChangeText={(text) => setForm((f) => ({ ...f, start: parseTimeInput(text) }))}
                         onBlur={() => setForm((f) => ({ ...f, start: parseTimeInput(f.start) }))}
                         placeholder={t('days.startTimePlaceholder')}
                         placeholderTextColor={COLORS.textMuted}
@@ -340,7 +353,7 @@ export default function DaysScreen() {
                       <TextInput
                         style={styles.input}
                         value={form.finish}
-                        onChangeText={(text) => setForm((f) => ({ ...f, finish: text }))}
+                        onChangeText={(text) => setForm((f) => ({ ...f, finish: parseTimeInput(text) }))}
                         onBlur={() => setForm((f) => ({ ...f, finish: parseTimeInput(f.finish) }))}
                         placeholder={t('days.finishTimePlaceholder')}
                         placeholderTextColor={COLORS.textMuted}
@@ -381,7 +394,7 @@ export default function DaysScreen() {
                         <TextInput
                           style={styles.input}
                           value={greenForm.start}
-                          onChangeText={(text) => setGreenForm((f) => ({ ...f, start: text }))}
+                          onChangeText={(text) => setGreenForm((f) => ({ ...f, start: parseTimeInput(text) }))}
                           onBlur={() => setGreenForm((f) => ({ ...f, start: parseTimeInput(f.start) }))}
                           placeholder={t('days.hhmmPlaceholder')}
                           placeholderTextColor={COLORS.textMuted}
@@ -393,7 +406,7 @@ export default function DaysScreen() {
                         <TextInput
                           style={styles.input}
                           value={greenForm.finish}
-                          onChangeText={(text) => setGreenForm((f) => ({ ...f, finish: text }))}
+                          onChangeText={(text) => setGreenForm((f) => ({ ...f, finish: parseTimeInput(text) }))}
                           onBlur={() => setGreenForm((f) => ({ ...f, finish: parseTimeInput(f.finish) }))}
                           placeholder={t('days.hhmmPlaceholder')}
                           placeholderTextColor={COLORS.textMuted}
@@ -449,7 +462,7 @@ export default function DaysScreen() {
                   </View>
                 )}
 
-                {isViewing && hasEntry && (
+                {isViewing && hasAnyEntry && (
                   <InlineDayView
                     day={day}
                     year={year}
@@ -489,24 +502,30 @@ function InlineDayView({ day, year, month, entry, entries, greenEntries }) {
   const { t } = useLanguage();
   return (
     <View style={styles.inlineView}>
-      <Text style={styles.inlineTitle}>{t('days.whitePaperHeader')}</Text>
-      <Text style={styles.inlineSubtitle}>{t('days.hoursPerDayWeek')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
-        <WhitePaperTable days={[day]} year={year} month={month} entries={entries} />
-      </ScrollView>
-      <Text style={styles.inlineItalic}>{t('days.eatingBreakFull')}</Text>
+      {entry ? (
+        <>
+          <Text style={styles.inlineTitle}>{t('days.whitePaperHeader')}</Text>
+          <Text style={styles.inlineSubtitle}>{t('days.hoursPerDayWeek')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
+            <WhitePaperTable days={[day]} year={year} month={month} entries={entries} />
+          </ScrollView>
+          <Text style={styles.inlineItalic}>{t('days.eatingBreakFull')}</Text>
 
-      <Text style={[styles.inlineTitle, { color: '#b45309' }]}>{t('days.orangePaperHeader')}</Text>
-      <Text style={styles.inlineSubtitle}>{t('days.maxHoursCombined')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
-        <OrangePaperTable days={[day]} year={year} month={month} entries={entries} />
-      </ScrollView>
-      <Text style={styles.inlineItalic}>{t('days.startWorkNote')}</Text>
+          <Text style={[styles.inlineTitle, { color: '#b45309' }]}>{t('days.orangePaperHeader')}</Text>
+          <Text style={styles.inlineSubtitle}>{t('days.maxHoursCombined')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
+            <OrangePaperTable days={[day]} year={year} month={month} entries={entries} />
+          </ScrollView>
+          <Text style={styles.inlineItalic}>{t('days.startWorkNote')}</Text>
 
-      <Text style={[styles.inlineTitle, { color: '#1565c0' }]}>{t('days.weeklySummaryHeader')}</Text>
-      <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
-        <InlineWeeklySummary entry={entry} />
-      </ScrollView>
+          <Text style={[styles.inlineTitle, { color: '#1565c0' }]}>{t('days.weeklySummaryHeader')}</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
+            <InlineWeeklySummary entry={entry} />
+          </ScrollView>
+        </>
+      ) : (
+        <Text style={[styles.inlineItalic, { color: '#888' }]}>No field work recorded this day.</Text>
+      )}
 
       <Text style={[styles.inlineTitle, { color: '#2d6a2d' }]}>{t('days.greenPaperHeader')}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator style={styles.inlineTable}>
