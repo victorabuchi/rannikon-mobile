@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  TouchableOpacity,
   View,
 } from 'react-native';
 import { Link } from 'expo-router';
@@ -51,13 +52,6 @@ export default function LoginScreen() {
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleGoogleSignIn = () => {
-    Alert.alert(
-      t('auth.googleSignInTitle'),
-      'Google sign in available in the full app build.'
-    );
   };
 
   return (
@@ -117,15 +111,12 @@ export default function LoginScreen() {
           </Text>
         </Pressable>
 
-        <Pressable
-          style={({ pressed }) => [styles.googleButton, pressed && styles.googleButtonPressed]}
-          onPress={handleGoogleSignIn}
+        <TouchableOpacity
+          onPress={() => Alert.alert('Coming soon', 'Google sign in will be available in the next update.')}
+          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginTop: 12 }}
         >
-          <View style={styles.googleLogo}>
-            <Text style={styles.googleLogoText}>G</Text>
-          </View>
-          <Text style={styles.googleButtonText}>{t('auth.continueWithGoogle')}</Text>
-        </Pressable>
+          <Text style={{ fontSize: 15, color: '#333', fontWeight: '600' }}>Continue with Google</Text>
+        </TouchableOpacity>
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>{t('auth.noAccount')}</Text>
@@ -213,41 +204,6 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     fontSize: 16,
     color: COLORS.white,
-  },
-  googleButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: COLORS.white,
-    borderWidth: 1,
-    borderColor: '#dadce0',
-    borderRadius: 8,
-    paddingVertical: 13,
-    paddingHorizontal: 16,
-    marginTop: 12,
-  },
-  googleButtonPressed: {
-    backgroundColor: '#f8f8f8',
-  },
-  googleLogo: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: '#4285F4',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  googleLogoText: {
-    fontFamily: FONTS.bold,
-    fontSize: 13,
-    color: COLORS.white,
-    lineHeight: 22,
-  },
-  googleButtonText: {
-    fontFamily: FONTS.medium,
-    fontSize: 15,
-    color: '#3c4043',
   },
   footer: {
     flexDirection: 'row',
