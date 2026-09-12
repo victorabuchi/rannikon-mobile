@@ -19,7 +19,7 @@ import { GroupPill } from '../components/Badges';
 import DatePickerModal from '../components/DatePickerModal';
 import PageHeader from '../components/PageHeader';
 import api from '../lib/api';
-import { useAuth } from '../lib/auth';
+import { useAuth, useRoleGuard } from '../lib/auth';
 import { formatDateLong, formatDateMedium, todayISODate } from '../lib/dates';
 import { exportWorkLogExcel, exportWorkLogPdf } from '../lib/exporters';
 import { GROUP_COLORS, getHouseGroup } from '../lib/houseGroups';
@@ -55,6 +55,7 @@ const TABLE_HEADERS = [
 
 export default function SupervisorScreen() {
   const { worker } = useAuth();
+  useRoleGuard(['supervisor', 'admin']);
   const { t } = useLanguage();
   const todayStr = todayISODate();
   const [selectedDate, setSelectedDate] = useState(todayStr);

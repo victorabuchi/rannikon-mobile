@@ -15,10 +15,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import PageHeader from '../components/PageHeader';
 import WorklogCard from '../components/WorklogCard';
 import api from '../lib/api';
+import { useRoleGuard } from '../lib/auth';
 import { useLanguage } from '../lib/i18n';
 import { COLORS, FONTS } from '../lib/theme';
 
 export default function HousemasterScreen() {
+  useRoleGuard(['housemaster', 'admin']);
   const { t } = useLanguage();
   const [tab, setTab] = useState('worklogs');
   const [worklogs, setWorklogs] = useState([]);

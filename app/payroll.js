@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import DatePickerModal from '../components/DatePickerModal';
 import PageHeader from '../components/PageHeader';
 import api from '../lib/api';
+import { useRoleGuard } from '../lib/auth';
 import { MONTH_NAMES, formatDateMedium, todayISODate } from '../lib/dates';
 import { exportHoursSummaryExcel } from '../lib/exporters';
 import { useLanguage } from '../lib/i18n';
@@ -64,6 +65,7 @@ function MonthNav({ month, year, onChange, monthNames }) {
 }
 
 export default function PayrollScreen() {
+  useRoleGuard(['payroll', 'admin']);
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);

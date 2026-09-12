@@ -19,6 +19,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { GroupPill, RoleBadge, StatCard } from '../components/Badges';
 import PageHeader from '../components/PageHeader';
 import api from '../lib/api';
+import { useRoleGuard } from '../lib/auth';
 import { addDaysToISODate, formatDateMedium, formatDateShort, todayISODate } from '../lib/dates';
 import { HOUSE_GROUPS } from '../lib/houseGroups';
 import { useLanguage } from '../lib/i18n';
@@ -65,6 +66,7 @@ const INVITATIONS_HEADERS = [
 ];
 
 export default function AdminScreen() {
+  useRoleGuard(['admin']);
   const { t } = useLanguage();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
