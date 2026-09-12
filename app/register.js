@@ -57,7 +57,7 @@ export default function RegisterScreen() {
       await signIn(data.token, data.worker);
     } catch (err) {
       setError(
-        err.response?.data?.message || t('register.registerError')
+        err.response?.data?.error || t('register.registerError')
       );
     } finally {
       setSubmitting(false);

@@ -1,6 +1,5 @@
 import { useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -12,9 +11,11 @@ import {
   View,
 } from 'react-native';
 import { Link } from 'expo-router';
+import * as Linking from 'expo-linking';
+import * as WebBrowser from 'expo-web-browser';
 
 import LanguageSelector from '../components/LanguageSelector';
-import api from '../lib/api';
+import api, { API_BASE_URL } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { useLanguage } from '../lib/i18n';
 import { COLORS, FONTS } from '../lib/theme';
@@ -26,6 +27,7 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const handleLogin = async () => {
     if (!identifier.trim() || !password) {
@@ -36,21 +38,45 @@ export default function LoginScreen() {
     setError('');
     setSubmitting(true);
 
-    const isEmail = identifier.includes('@');
-    const payload = {
-      password,
-      ...(isEmail
-        ? { email: identifier.trim() }
-        : { work_number: identifier.trim() }),
-    };
-
+    // The backend only ever reads a `work_number` field for this endpoint —
+    // it matches it against both the work_number and email columns.
     try {
-      const { data } = await api.post('/api/auth/login', payload);
+      const { data } = await api.post('/api/auth/login', {
+        work_number: identifier.trim(),
+        password,
+      });
       await signIn(data.token, data.worker);
     } catch (err) {
-      setError(err.response?.data?.message || t('auth.loginError'));
+      setError(err.response?.data?.error || t('auth.loginError'));
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setGoogleLoading(true);
+    try {
+      const redirectUrl = Linking.createURL('auth-callback');
+      const authUrl = `${API_BASE_URL}/api/auth/google/mobile/start`;
+      const result = await WebBrowser.openAuthSessionAsync(authUrl, redirectUrl);
+
+      if (result.type !== 'success' || !result.url) {
+        return;
+      }
+
+      const { queryParams } = Linking.parse(result.url);
+      if (queryParams?.error || !queryParams?.token || !queryParams?.worker) {
+        setError(t('auth.googleSignInFailed'));
+        return;
+      }
+
+      const worker = JSON.parse(queryParams.worker);
+      await signIn(queryParams.token, worker);
+    } catch {
+      setError(t('auth.googleSignInFailed'));
+    } finally {
+      setGoogleLoading(false);
     }
   };
 
@@ -95,6 +121,10 @@ export default function LoginScreen() {
           />
         </View>
 
+        <Link href="/forgot-password" style={styles.forgotLink}>
+          {t('auth.forgotPassword')}
+        </Link>
+
         {!!error && <Text style={styles.error}>{error}</Text>}
 
         <Pressable
@@ -112,10 +142,13 @@ export default function LoginScreen() {
         </Pressable>
 
         <TouchableOpacity
-          onPress={() => Alert.alert('Coming soon', 'Google sign in will be available in the next update.')}
-          style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: '#fff', borderWidth: 1, borderColor: '#ddd', borderRadius: 8, padding: 12, marginTop: 12 }}
+          onPress={handleGoogleSignIn}
+          disabled={googleLoading}
+          style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
         >
-          <Text style={{ fontSize: 15, color: '#333', fontWeight: '600' }}>Continue with Google</Text>
+          <Text style={styles.googleButtonText}>
+            {googleLoading ? t('auth.signingIn') : t('auth.continueWithGoogle')}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.footer}>
@@ -162,6 +195,29 @@ const styles = StyleSheet.create({
   },
   field: {
     marginBottom: 16,
+  },
+  forgotLink: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: COLORS.primary,
+    textAlign: 'right',
+    marginBottom: 8,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#ddd',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  googleButtonText: {
+    fontSize: 15,
+    color: '#333',
+    fontWeight: '600',
   },
   label: {
     fontFamily: FONTS.medium,

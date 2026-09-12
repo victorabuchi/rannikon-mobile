@@ -25,7 +25,14 @@
     },
     "plugins": [
       "expo-router",
-      "expo-secure-store"
+      "expo-secure-store",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Rannikon uses your photo library to set a profile picture."
+        }
+      ]
     ]
   }
 }

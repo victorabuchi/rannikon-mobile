@@ -16,7 +16,7 @@ import { COLORS } from '../lib/theme';
 SplashScreen.preventAutoHideAsync();
 
 function RootNavigator({ fontsReady }) {
-  const { token, isLoading } = useAuth();
+  const { token, isLoading, needsWorkNumber } = useAuth();
   const { onboardingDone } = useOnboarding();
 
   const ready = fontsReady && !isLoading && onboardingDone !== null;
@@ -41,12 +41,16 @@ function RootNavigator({ fontsReady }) {
       <Stack.Protected guard={!onboardingDone}>
         <Stack.Screen name="onboarding" options={{ gestureEnabled: false, animation: 'none' }} />
       </Stack.Protected>
-      <Stack.Protected guard={onboardingDone && !!token}>
+      <Stack.Protected guard={onboardingDone && !!token && needsWorkNumber}>
+        <Stack.Screen name="complete-profile" options={{ gestureEnabled: false }} />
+      </Stack.Protected>
+      <Stack.Protected guard={onboardingDone && !!token && !needsWorkNumber}>
         <Stack.Screen name="(tabs)" />
       </Stack.Protected>
       <Stack.Protected guard={onboardingDone && !token}>
         <Stack.Screen name="login" />
         <Stack.Screen name="register" />
+        <Stack.Screen name="forgot-password" />
       </Stack.Protected>
     </Stack>
   );
