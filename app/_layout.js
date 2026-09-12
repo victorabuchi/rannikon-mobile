@@ -50,6 +50,7 @@ function RootNavigator({ fontsReady }) {
         <Stack.Screen name="supervisor" />
         <Stack.Screen name="admin" />
         <Stack.Screen name="housemaster" />
+        <Stack.Screen name="payroll" />
         <Stack.Screen name="profile" />
       </Stack.Protected>
       <Stack.Protected guard={onboardingDone && !token}>
