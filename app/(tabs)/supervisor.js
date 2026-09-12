@@ -15,9 +15,10 @@ import {
 } from 'react-native';
 
 import { GroupPill } from '../../components/Badges';
+import DatePickerModal from '../../components/DatePickerModal';
 import api from '../../lib/api';
 import { useAuth } from '../../lib/auth';
-import { formatDateLong, formatDateMedium } from '../../lib/dates';
+import { formatDateLong, formatDateMedium, todayISODate } from '../../lib/dates';
 import { exportWorkLogExcel, exportWorkLogPdf } from '../../lib/exporters';
 import { GROUP_COLORS, getHouseGroup } from '../../lib/houseGroups';
 import { useLanguage } from '../../lib/i18n';
@@ -53,16 +54,24 @@ const TABLE_HEADERS = [
 export default function SupervisorScreen() {
   const { worker } = useAuth();
   const { t } = useLanguage();
+  const todayStr = todayISODate();
+  const [selectedDate, setSelectedDate] = useState(todayStr);
+  const [showDatePicker, setShowDatePicker] = useState(false);
   const [session, setSession] = useState(null);
   const [batches, setBatches] = useState([]);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [view, setView] = useState('session'); // 'session' | 'worklog'
+  const isToday = selectedDate === todayStr;
 
   // Add workers modal
   const [showBatchModal, setShowBatchModal] = useState(false);
-  const [batchNumbers, setBatchNumbers] = useState('');
+  const [directory, setDirectory] = useState([]);
+  const [directoryLoaded, setDirectoryLoaded] = useState(false);
+  const [workerSearch, setWorkerSearch] = useState('');
+  const [newWorkerName, setNewWorkerName] = useState('');
+  const [selectedWorkers, setSelectedWorkers] = useState([]);
   const [batchStart, setBatchStart] = useState('');
   const [batchWork, setBatchWork] = useState('');
   const [batchSaving, setBatchSaving] = useState(false);
@@ -93,9 +102,9 @@ export default function SupervisorScreen() {
     setLogs(data.logs || []);
   };
 
-  const loadToday = useCallback(async () => {
+  const loadForDate = useCallback(async (date) => {
     try {
-      const { data } = await api.get('/api/supervisor/session/today');
+      const { data } = await api.get(`/api/supervisor/session/date/${date}`);
       if (data.session) {
         setSession(data.session);
         setSent(data.session.status === 'sent');
@@ -114,21 +123,21 @@ export default function SupervisorScreen() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await loadToday();
+      await loadForDate(selectedDate);
       setLoading(false);
     })();
-  }, [loadToday]);
+  }, [loadForDate, selectedDate]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await loadToday();
+    await loadForDate(selectedDate);
     setRefreshing(false);
-  }, [loadToday]);
+  }, [loadForDate, selectedDate]);
 
   const startSession = async () => {
     setLoading(true);
     try {
-      const { data } = await api.post('/api/supervisor/session', {});
+      const { data } = await api.post('/api/supervisor/session', { session_date: selectedDate });
       setSession(data.session);
       setBatches([]);
       setLogs([]);
@@ -138,14 +147,48 @@ export default function SupervisorScreen() {
     }
   };
 
-  const batchNumbersList = batchNumbers
-    .split(/[\s,;]+/)
-    .map((s) => s.trim())
-    .filter(Boolean);
+  const loadDirectory = async () => {
+    try {
+      const { data } = await api.get('/api/supervisor/directory');
+      setDirectory(data.directory || []);
+    } finally {
+      setDirectoryLoaded(true);
+    }
+  };
+
+  const openBatchModal = () => {
+    setShowBatchModal(true);
+    if (!directoryLoaded) loadDirectory();
+  };
+
+  const toggleWorker = (entry) => {
+    setSelectedWorkers((prev) =>
+      prev.some((w) => w.worker_number === entry.worker_number)
+        ? prev.filter((w) => w.worker_number !== entry.worker_number)
+        : [...prev, entry]
+    );
+  };
+
+  const addAdHocWorker = () => {
+    const wn = workerSearch.trim();
+    if (!wn) return;
+    const entry = { worker_number: wn, full_name: newWorkerName.trim() };
+    setSelectedWorkers((prev) => (prev.some((w) => w.worker_number === wn) ? prev : [...prev, entry]));
+    setWorkerSearch('');
+    setNewWorkerName('');
+  };
+
+  const query = workerSearch.trim().toLowerCase();
+  const directoryMatches = query
+    ? directory.filter(
+        (d) => d.worker_number.toLowerCase().startsWith(query) || d.full_name.toLowerCase().includes(query)
+      )
+    : directory;
+  const exactExists = directory.some((d) => d.worker_number.toLowerCase() === query);
 
   const addBatch = async () => {
     setBatchError('');
-    if (!batchNumbersList.length) {
+    if (!selectedWorkers.length) {
       setBatchError(t('sup.enterWorkerNumber'));
       return;
     }
@@ -157,12 +200,13 @@ export default function SupervisorScreen() {
     try {
       await api.post('/api/supervisor/batch', {
         session_id: session.id,
-        worker_numbers: batchNumbersList,
+        worker_numbers: selectedWorkers.map((w) => w.worker_number),
         start_time: batchStart,
         what_work: batchWork,
       });
       setShowBatchModal(false);
-      setBatchNumbers('');
+      setSelectedWorkers([]);
+      setWorkerSearch('');
       setBatchStart('');
       setBatchWork('');
       await Promise.all([loadBatches(session.id), loadLogs(session.id)]);
@@ -223,7 +267,7 @@ export default function SupervisorScreen() {
   const handleDownloadPdf = async () => {
     setExporting(true);
     try {
-      await exportWorkLogPdf({ worker, session, logs, dateLabel: formatDateMedium(new Date()) });
+      await exportWorkLogPdf({ worker, session, logs, dateLabel: formatDateMedium(selectedDate) });
     } catch {
       Alert.alert(t('common.exportFailed'), t('common.exportPdfError'));
     } finally {
@@ -234,7 +278,7 @@ export default function SupervisorScreen() {
   const handleDownloadExcel = async () => {
     setExporting(true);
     try {
-      await exportWorkLogExcel({ worker, session, logs, dateLabel: formatDateMedium(new Date()) });
+      await exportWorkLogExcel({ worker, session, logs, dateLabel: formatDateMedium(selectedDate) });
     } catch {
       Alert.alert(t('common.exportFailed'), t('common.exportExcelError'));
     } finally {
@@ -257,16 +301,37 @@ export default function SupervisorScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
         <View style={styles.header}>
-          <Text style={styles.title}>{t('sup.panel')}</Text>
-          <Text style={styles.subtitle}>{formatDateLong(new Date())}</Text>
+          <View style={styles.headerTop}>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.title}>{t('sup.panel')}</Text>
+              <View style={styles.subtitleRow}>
+                <Text style={styles.subtitle}>{formatDateLong(selectedDate)}</Text>
+                {!isToday && (
+                  <View style={styles.notTodayBadge}>
+                    <Text style={styles.notTodayBadgeText}>{t('sup.notToday')}</Text>
+                  </View>
+                )}
+              </View>
+            </View>
+            <View style={styles.headerActions}>
+              {!isToday && (
+                <Pressable style={styles.outlineButton} onPress={() => setSelectedDate(todayStr)}>
+                  <Text style={styles.outlineButtonText}>{t('sup.today')}</Text>
+                </Pressable>
+              )}
+              <Pressable style={styles.outlineButton} onPress={() => setShowDatePicker(true)}>
+                <Text style={styles.outlineButtonText}>{t('sup.pickDate')}</Text>
+              </Pressable>
+            </View>
+          </View>
         </View>
 
         {!session && (
           <View style={[styles.card, styles.emptyCard]}>
-            <Text style={styles.emptyTitle}>{t('sup.noActiveSession')}</Text>
+            <Text style={styles.emptyTitle}>{t(isToday ? 'sup.noActiveSession' : 'sup.noActiveSessionForDate')}</Text>
             <Text style={styles.emptyText}>{t('sup.startSessionDesc')}</Text>
             <Pressable style={styles.primaryButton} onPress={startSession}>
-              <Text style={styles.primaryButtonText}>{t('sup.startSession')}</Text>
+              <Text style={styles.primaryButtonText}>{t(isToday ? 'sup.startSession' : 'sup.startSessionForDate')}</Text>
             </Pressable>
           </View>
         )}
@@ -299,7 +364,7 @@ export default function SupervisorScreen() {
                 <Pressable style={styles.breakButton} onPress={() => setShowBreakModal(true)}>
                   <Text style={styles.breakButtonText}>{t('sup.addBreak')}</Text>
                 </Pressable>
-                <Pressable style={styles.primaryButtonSmall} onPress={() => setShowBatchModal(true)}>
+                <Pressable style={styles.primaryButtonSmall} onPress={openBatchModal}>
                   <Text style={styles.primaryButtonSmallText}>{t('sup.addWorkers')}</Text>
                 </Pressable>
               </View>
@@ -510,14 +575,75 @@ export default function SupervisorScreen() {
               <View style={styles.field}>
                 <Text style={styles.label}>{t('sup.workerNumbers')}</Text>
                 <TextInput
-                  style={[styles.input, styles.textarea]}
-                  placeholder={t('sup.workerNumbersPlaceholder')}
+                  style={styles.input}
+                  placeholder={t('sup.searchWorkerPlaceholder')}
                   placeholderTextColor={COLORS.textMuted}
-                  value={batchNumbers}
-                  onChangeText={setBatchNumbers}
-                  multiline
+                  value={workerSearch}
+                  onChangeText={setWorkerSearch}
+                  autoCapitalize="none"
+                  autoCorrect={false}
                 />
-                <Text style={styles.helperText}>{batchNumbersList.length} {t('sup.workersEntered')}</Text>
+
+                {selectedWorkers.length > 0 && (
+                  <View style={styles.chipRow}>
+                    {selectedWorkers.map((w) => (
+                      <Pressable
+                        key={w.worker_number}
+                        onPress={() => toggleWorker(w)}
+                        style={styles.selectedChip}
+                      >
+                        <Text style={styles.selectedChipText}>
+                          #{w.worker_number} {w.full_name} ×
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                )}
+
+                <View style={styles.directoryList}>
+                  {!directoryLoaded ? (
+                    <Text style={styles.directoryEmptyText}>{t('common.loading')}</Text>
+                  ) : directoryMatches.length === 0 ? (
+                    query && !exactExists ? (
+                      <View style={styles.adHocBox}>
+                        <Text style={styles.adHocText}>
+                          {t('sup.noMatchAddNew').replace('{number}', workerSearch.trim())}
+                        </Text>
+                        <View style={styles.adHocRow}>
+                          <TextInput
+                            style={[styles.input, styles.adHocInput]}
+                            placeholder={t('sup.newWorkerNamePlaceholder')}
+                            placeholderTextColor={COLORS.textMuted}
+                            value={newWorkerName}
+                            onChangeText={setNewWorkerName}
+                          />
+                          <Pressable style={styles.primaryButtonSmall} onPress={addAdHocWorker}>
+                            <Text style={styles.primaryButtonSmallText}>{t('sup.addToBatchBtn')}</Text>
+                          </Pressable>
+                        </View>
+                      </View>
+                    ) : (
+                      <Text style={styles.directoryEmptyText}>{t('sup.noWorkersInDirectory')}</Text>
+                    )
+                  ) : (
+                    directoryMatches.slice(0, 30).map((d) => {
+                      const isSelected = selectedWorkers.some((w) => w.worker_number === d.worker_number);
+                      return (
+                        <Pressable
+                          key={d.worker_number}
+                          onPress={() => toggleWorker(d)}
+                          style={[styles.directoryRow, isSelected && styles.directoryRowSelected]}
+                        >
+                          <Text style={styles.directoryRowText} numberOfLines={1}>
+                            #{d.worker_number}  {d.full_name}
+                          </Text>
+                          {isSelected && <Text style={styles.directoryCheck}>✓</Text>}
+                        </Pressable>
+                      );
+                    })
+                  )}
+                </View>
+                <Text style={styles.helperText}>{selectedWorkers.length} {t('sup.workersEntered')}</Text>
               </View>
 
               <View style={styles.field}>
@@ -546,14 +672,14 @@ export default function SupervisorScreen() {
 
               {!!batchError && <Text style={styles.formError}>{batchError}</Text>}
 
-              {batchNumbersList.length > 0 && (
+              {selectedWorkers.length > 0 && (
                 <View style={styles.groupPreview}>
                   <Text style={styles.groupPreviewLabel}>{t('sup.groupsDetected')}</Text>
                   <View style={styles.chipRow}>
-                    {batchNumbersList.map((wn) => (
-                      <View key={wn} style={styles.groupPreviewItem}>
-                        <Text style={styles.groupPreviewNumber}>#{wn}</Text>
-                        <GroupPill group={getHouseGroup(wn)} />
+                    {selectedWorkers.map((w) => (
+                      <View key={w.worker_number} style={styles.groupPreviewItem}>
+                        <Text style={styles.groupPreviewNumber}>#{w.worker_number}</Text>
+                        <GroupPill group={getHouseGroup(w.worker_number)} />
                       </View>
                     ))}
                   </View>
@@ -679,6 +805,17 @@ export default function SupervisorScreen() {
           </View>
         </View>
       </Modal>
+
+      <DatePickerModal
+        visible={showDatePicker}
+        selectedDate={selectedDate}
+        maxDate={todayStr}
+        onSelect={(date) => {
+          setSelectedDate(date);
+          setShowDatePicker(false);
+        }}
+        onClose={() => setShowDatePicker(false)}
+      />
     </View>
   );
 }
@@ -701,16 +838,44 @@ const styles = StyleSheet.create({
   header: {
     marginBottom: 16,
   },
+  headerTop: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 10,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
   title: {
     fontFamily: FONTS.bold,
     fontSize: 20,
     color: COLORS.text,
     marginBottom: 2,
   },
+  subtitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   subtitle: {
     fontFamily: FONTS.regular,
     fontSize: 13,
     color: '#666666',
+  },
+  notTodayBadge: {
+    backgroundColor: '#fff3e0',
+    borderRadius: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 8,
+  },
+  notTodayBadgeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: '#b45309',
   },
   card: {
     backgroundColor: COLORS.background,
@@ -1102,6 +1267,74 @@ const styles = StyleSheet.create({
   textarea: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  selectedChip: {
+    backgroundColor: '#e8f5e9',
+    borderWidth: 1,
+    borderColor: '#a5d6a7',
+    borderRadius: 14,
+    paddingVertical: 4,
+    paddingHorizontal: 10,
+  },
+  selectedChipText: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: '#1b5e20',
+  },
+  directoryList: {
+    borderWidth: 1,
+    borderColor: '#eeeeee',
+    borderRadius: 8,
+    marginTop: 8,
+    maxHeight: 200,
+    overflow: 'hidden',
+  },
+  directoryEmptyText: {
+    fontFamily: FONTS.regular,
+    fontSize: 13,
+    color: '#888888',
+    textAlign: 'center',
+    padding: 14,
+  },
+  directoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f5f5f0',
+    backgroundColor: COLORS.background,
+  },
+  directoryRowSelected: {
+    backgroundColor: '#e8f5e9',
+  },
+  directoryRowText: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: COLORS.text,
+    flexShrink: 1,
+  },
+  directoryCheck: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.primary,
+  },
+  adHocBox: {
+    padding: 12,
+  },
+  adHocText: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: '#888888',
+    marginBottom: 8,
+  },
+  adHocRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  adHocInput: {
+    flex: 1,
   },
   bigCenterInput: {
     fontSize: 20,

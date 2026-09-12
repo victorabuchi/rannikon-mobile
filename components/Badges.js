@@ -23,6 +23,7 @@ const ROLE_STYLE = {
   supervisor: { bg: '#e3f2fd', text: '#1565c0', border: '#90caf9' },
   housemaster: { bg: '#f3e5f5', text: '#7b1fa2', border: '#ce93d8' },
   admin: { bg: '#e8f5e9', text: '#2d6a2d', border: '#a5d6a7' },
+  payroll: { bg: '#fff3e0', text: '#b45309', border: '#ffcc80' },
 };
 
 const ROLE_LABEL_KEY = {
@@ -30,6 +31,7 @@ const ROLE_LABEL_KEY = {
   supervisor: 'admin.roleSupervisor',
   housemaster: 'admin.roleHousemaster',
   admin: 'admin.roleAdmin',
+  payroll: 'admin.rolePayroll',
 };
 
 export function RoleBadge({ role }) {

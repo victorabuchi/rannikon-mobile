@@ -22,13 +22,14 @@ import { HOUSE_GROUPS } from '../../lib/houseGroups';
 import { useLanguage } from '../../lib/i18n';
 import { COLORS, FONTS } from '../../lib/theme';
 
-const ROLE_OPTIONS = ['worker', 'supervisor', 'housemaster', 'admin'];
+const ROLE_OPTIONS = ['worker', 'supervisor', 'housemaster', 'admin', 'payroll'];
 
 const ROLE_LABEL_KEY = {
   worker: 'admin.roleWorker',
   supervisor: 'admin.roleSupervisor',
   housemaster: 'admin.roleHousemaster',
   admin: 'admin.roleAdmin',
+  payroll: 'admin.rolePayroll',
 };
 
 const WORKERS_HEADERS = [
@@ -38,7 +39,7 @@ const WORKERS_HEADERS = [
   { key: 'role', labelKey: 'admin.colRole', width: 100 },
   { key: 'group', labelKey: 'admin.colGroup', width: 140 },
   { key: 'status', labelKey: 'admin.colStatus', width: 70 },
-  { key: 'actions', labelKey: 'admin.colActions', width: 110 },
+  { key: 'actions', labelKey: 'admin.colActions', width: 190 },
 ];
 
 const LOGS_HEADERS = [
@@ -58,6 +59,7 @@ const INVITATIONS_HEADERS = [
   { key: 'invitedby', labelKey: 'admin.colInvitedBy', width: 120 },
   { key: 'created', labelKey: 'admin.colCreated', width: 90 },
   { key: 'status', labelKey: 'admin.colStatus', width: 80 },
+  { key: 'remove', labelKey: null, width: 44 },
 ];
 
 export default function AdminScreen() {
@@ -71,6 +73,8 @@ export default function AdminScreen() {
   const [search, setSearch] = useState('');
   const [updatingId, setUpdatingId] = useState(null);
   const [roleModalWorker, setRoleModalWorker] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   const [logsDate, setLogsDate] = useState(todayISODate());
   const [grouped, setGrouped] = useState({});
@@ -167,6 +171,48 @@ export default function AdminScreen() {
     } finally {
       setUpdatingId(null);
     }
+  };
+
+  const deleteWorker = async () => {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.delete(`/api/admin/workers/${deleteTarget.id}`);
+      setDeleteTarget(null);
+      await loadWorkers();
+      await loadStats();
+    } catch (e) {
+      Alert.alert(t('common.error'), e.response?.data?.error || t('admin.deleteFailed'));
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const deleteInvitation = async (id) => {
+    try {
+      await api.delete(`/api/admin/invitations/${id}`);
+      setInvitations((prev) => prev.filter((inv) => inv.id !== id));
+    } catch {
+      // keep previous invitations on failure
+    }
+  };
+
+  const clearAllInvitations = () => {
+    Alert.alert(t('admin.clearAll'), t('admin.clearAllInvitationsConfirm'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      {
+        text: t('admin.clearAll'),
+        style: 'destructive',
+        onPress: async () => {
+          try {
+            await api.delete('/api/admin/invitations');
+            setInvitations([]);
+          } catch {
+            // keep previous invitations on failure
+          }
+        },
+      },
+    ]);
   };
 
   const sendInvite = async () => {
@@ -348,7 +394,7 @@ export default function AdminScreen() {
                           </Text>
                         </View>
                       </View>
-                      <View style={[styles.td, { width: WORKERS_HEADERS[6].width }]}>
+                      <View style={[styles.td, styles.actionsCell, { width: WORKERS_HEADERS[6].width }]}>
                         <Pressable
                           style={[
                             styles.toggleActiveButton,
@@ -365,6 +411,13 @@ export default function AdminScreen() {
                           >
                             {w.is_active ? t('admin.deactivate') : t('admin.activate')}
                           </Text>
+                        </Pressable>
+                        <Pressable
+                          style={styles.deleteButton}
+                          onPress={() => setDeleteTarget(w)}
+                          disabled={updatingId === w.id}
+                        >
+                          <Text style={styles.deleteButtonText}>{t('admin.delete')}</Text>
                         </Pressable>
                       </View>
                     </View>
@@ -486,9 +539,16 @@ export default function AdminScreen() {
           <View style={[styles.card, styles.tableCard]}>
             <View style={styles.invitationsHeader}>
               <Text style={styles.cardTitle}>{t('admin.pendingInvitations')}</Text>
-              <Pressable style={styles.outlineButton} onPress={loadInvitations}>
-                <Text style={styles.outlineButtonText}>{t('common.refresh')}</Text>
-              </Pressable>
+              <View style={styles.invitationsHeaderActions}>
+                {invitations.length > 0 && (
+                  <Pressable style={styles.dangerOutlineButton} onPress={clearAllInvitations}>
+                    <Text style={styles.dangerOutlineButtonText}>{t('admin.clearAll')}</Text>
+                  </Pressable>
+                )}
+                <Pressable style={styles.outlineButton} onPress={loadInvitations}>
+                  <Text style={styles.outlineButtonText}>{t('common.refresh')}</Text>
+                </Pressable>
+              </View>
             </View>
             {invLoading ? (
               <Text style={styles.emptyTableText}>{t('common.loading')}</Text>
@@ -500,7 +560,7 @@ export default function AdminScreen() {
                   <View style={styles.tableHeaderRow}>
                     {INVITATIONS_HEADERS.map((h) => (
                       <View key={h.key} style={[styles.th, { width: h.width }]}>
-                        <Text style={styles.thText}>{t(h.labelKey)}</Text>
+                        <Text style={styles.thText}>{h.labelKey ? t(h.labelKey) : ''}</Text>
                       </View>
                     ))}
                   </View>
@@ -540,6 +600,11 @@ export default function AdminScreen() {
                             {inv.accepted ? t('admin.accepted') : t('admin.pendingStatus')}
                           </Text>
                         </View>
+                      </View>
+                      <View style={[styles.td, { width: INVITATIONS_HEADERS[6].width }]}>
+                        <Pressable onPress={() => deleteInvitation(inv.id)} hitSlop={8}>
+                          <Text style={styles.removeText}>×</Text>
+                        </Pressable>
                       </View>
                     </View>
                   ))}
@@ -699,6 +764,39 @@ export default function AdminScreen() {
             <Pressable style={styles.cancelButton} onPress={() => setRoleModalWorker(null)}>
               <Text style={styles.cancelButtonText}>{t('common.close')}</Text>
             </Pressable>
+          </View>
+        </View>
+      </Modal>
+
+      {/* DELETE WORKER MODAL */}
+      <Modal
+        visible={!!deleteTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !deleting && setDeleteTarget(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, styles.smallModalCard]}>
+            <Text style={[styles.modalTitle, { color: '#c0392b' }]}>
+              {t('admin.deleteWorkerTitle')} #{deleteTarget?.work_number} {deleteTarget?.full_name}?
+            </Text>
+            <Text style={styles.modalSubtitle}>{t('admin.deleteWorkerDesc')}</Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={styles.cancelButton}
+                onPress={() => setDeleteTarget(null)}
+                disabled={deleting}
+              >
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalPrimaryButton, styles.dangerButton]}
+                onPress={deleteWorker}
+                disabled={deleting}
+              >
+                <Text style={styles.dangerButtonText}>{deleting ? t('admin.deleting') : t('admin.delete')}</Text>
+              </Pressable>
+            </View>
           </View>
         </View>
       </Modal>
@@ -929,6 +1027,11 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.bold,
     fontSize: 11,
   },
+  actionsCell: {
+    flexDirection: 'row',
+    gap: 6,
+    alignItems: 'center',
+  },
   toggleActiveButton: {
     borderWidth: 1,
     borderColor: '#dddddd',
@@ -940,6 +1043,24 @@ const styles = StyleSheet.create({
   toggleActiveText: {
     fontFamily: FONTS.bold,
     fontSize: 11,
+  },
+  deleteButton: {
+    borderWidth: 1,
+    borderColor: '#f5c2c2',
+    borderRadius: 6,
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    backgroundColor: COLORS.background,
+  },
+  deleteButtonText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: '#c0392b',
+  },
+  removeText: {
+    fontFamily: FONTS.bold,
+    fontSize: 16,
+    color: '#cccccc',
   },
   dateRow: {
     flexDirection: 'row',
@@ -1032,11 +1153,30 @@ const styles = StyleSheet.create({
   },
   invitationsHeader: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
     alignItems: 'center',
+    gap: 8,
     padding: 14,
     borderBottomWidth: 1,
     borderBottomColor: '#f0f0ec',
+  },
+  invitationsHeaderActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  dangerOutlineButton: {
+    backgroundColor: COLORS.background,
+    borderWidth: 1,
+    borderColor: '#f5c2c2',
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  dangerOutlineButtonText: {
+    fontFamily: FONTS.medium,
+    fontSize: 12,
+    color: '#c0392b',
   },
   cardTitle: {
     fontFamily: FONTS.bold,
@@ -1151,6 +1291,17 @@ const styles = StyleSheet.create({
   modalPrimaryButton: {
     flex: 2,
     paddingVertical: 12,
+  },
+  dangerButton: {
+    backgroundColor: '#c0392b',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dangerButtonText: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.white,
   },
   linkBox: {
     backgroundColor: '#f5f5f0',
