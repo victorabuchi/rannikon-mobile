@@ -87,6 +87,17 @@ export default function AdminScreen() {
   const [invitations, setInvitations] = useState([]);
   const [invLoading, setInvLoading] = useState(false);
 
+  const [pendingRequests, setPendingRequests] = useState([]);
+  const [approvingId, setApprovingId] = useState(null);
+  const [rejectTarget, setRejectTarget] = useState(null);
+  const [rejectNote, setRejectNote] = useState('');
+  const [rejecting, setRejecting] = useState(false);
+
+  const [absenceFlags, setAbsenceFlags] = useState([]);
+  const [absenceWarnings, setAbsenceWarnings] = useState([]);
+  const [absenceLoading, setAbsenceLoading] = useState(false);
+  const [absenceLoaded, setAbsenceLoaded] = useState(false);
+
   const [showInvite, setShowInvite] = useState(false);
   const [inviteForm, setInviteForm] = useState({ email: '', work_number: '', role: 'worker', house_group: '' });
   const [inviteSaving, setInviteSaving] = useState(false);
@@ -140,10 +151,33 @@ export default function AdminScreen() {
     }
   };
 
+  const loadPendingRequests = async () => {
+    try {
+      const { data } = await api.get('/api/leave-requests/admin');
+      setPendingRequests(data.requests || []);
+    } catch {
+      // keep previous list on transient errors
+    }
+  };
+
+  const loadAbsenceFlags = async () => {
+    setAbsenceLoading(true);
+    try {
+      const { data } = await api.get('/api/admin/absence-flags');
+      setAbsenceFlags(data.flags || []);
+      setAbsenceWarnings(data.warnings || []);
+      setAbsenceLoaded(true);
+    } catch {
+      // keep previous flags on transient errors
+    } finally {
+      setAbsenceLoading(false);
+    }
+  };
+
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await Promise.all([loadStats(), loadWorkers()]);
+      await Promise.all([loadStats(), loadWorkers(), loadPendingRequests()]);
       setLoading(false);
     })();
   }, []);
@@ -153,13 +187,46 @@ export default function AdminScreen() {
     await Promise.all([loadStats(), loadWorkers()]);
     if (tab === 'logs') await loadLogs(logsDate);
     if (tab === 'invitations') await loadInvitations();
+    if (tab === 'requests') await loadPendingRequests();
+    if (tab === 'absences') await loadAbsenceFlags();
     setRefreshing(false);
   }, [tab, logsDate]);
+
+  const approveRequest = async (id) => {
+    setApprovingId(id);
+    try {
+      await api.post(`/api/leave-requests/${id}/decide`, { decision: 'approved' });
+      setPendingRequests((prev) => prev.filter((r) => r.id !== id));
+    } catch {
+      Alert.alert(t('common.error'), t('requests.submitFailed'));
+    } finally {
+      setApprovingId(null);
+    }
+  };
+
+  const confirmReject = async () => {
+    if (!rejectTarget) return;
+    setRejecting(true);
+    try {
+      await api.post(`/api/leave-requests/${rejectTarget.id}/decide`, {
+        decision: 'rejected',
+        note: rejectNote,
+      });
+      setPendingRequests((prev) => prev.filter((r) => r.id !== rejectTarget.id));
+      setRejectTarget(null);
+      setRejectNote('');
+    } catch {
+      Alert.alert(t('common.error'), t('requests.submitFailed'));
+    } finally {
+      setRejecting(false);
+    }
+  };
 
   const handleTabChange = (key) => {
     setTab(key);
     if (key === 'logs' && Object.keys(grouped).length === 0) loadLogs(logsDate);
     if (key === 'invitations' && invitations.length === 0) loadInvitations();
+    if (key === 'absences' && !absenceLoaded) loadAbsenceFlags();
   };
 
   const updateWorker = async (id, patch) => {
@@ -323,6 +390,8 @@ export default function AdminScreen() {
             ['workers', 'admin.tabWorkers'],
             ['logs', 'admin.tabLogs'],
             ['invitations', 'admin.tabInvitations'],
+            ['requests', 'admin.tabRequests'],
+            ['absences', 'admin.tabAbsences'],
           ].map(([key, labelKey]) => (
             <Pressable
               key={key}
@@ -615,6 +684,122 @@ export default function AdminScreen() {
             )}
           </View>
         )}
+
+        {tab === 'requests' && (
+          <View style={[styles.card, styles.tableCard]}>
+            <View style={styles.invitationsHeader}>
+              <Text style={styles.cardTitle}>{t('admin.tabRequests')}</Text>
+              <Pressable style={styles.outlineButton} onPress={loadPendingRequests}>
+                <Text style={styles.outlineButtonText}>{t('common.refresh')}</Text>
+              </Pressable>
+            </View>
+            {pendingRequests.length === 0 ? (
+              <Text style={styles.emptyTableText}>{t('requests.noPendingRequests')}</Text>
+            ) : (
+              pendingRequests.map((r) => (
+                <View key={r.id} style={styles.requestRow}>
+                  <View style={{ flex: 1, minWidth: 180 }}>
+                    <View style={styles.requestWorkerRow}>
+                      <Text style={styles.requestWorker}>#{r.work_number} {r.full_name}</Text>
+                      <GroupPill group={r.worker_house_group} />
+                    </View>
+                    <Text style={styles.requestMeta}>
+                      {t(`requests.type${r.request_type.charAt(0).toUpperCase()}${r.request_type.slice(1)}`)}
+                      {'  ·  '}{r.start_date} → {r.end_date}
+                      {r.reason ? `  ·  ${r.reason}` : ''}
+                      {r.forwarded_by_name ? `  ·  ${t('requests.forwardedBy')}: ${r.forwarded_by_name}` : ''}
+                    </Text>
+                  </View>
+                  <View style={styles.requestActions}>
+                    <Pressable
+                      style={[styles.primaryButtonSmall, approvingId === r.id && styles.buttonDisabled]}
+                      onPress={() => approveRequest(r.id)}
+                      disabled={approvingId === r.id}
+                    >
+                      <Text style={styles.primaryButtonSmallText}>
+                        {approvingId === r.id ? '…' : t('requests.approve')}
+                      </Text>
+                    </Pressable>
+                    <Pressable
+                      style={styles.dangerOutlineButton}
+                      onPress={() => setRejectTarget(r)}
+                    >
+                      <Text style={styles.dangerOutlineButtonText}>{t('requests.reject')}</Text>
+                    </Pressable>
+                  </View>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        {tab === 'absences' && (
+          <View style={[styles.card, styles.tableCard]}>
+            <View style={styles.invitationsHeader}>
+              <View>
+                <Text style={styles.cardTitle}>{t('admin.tabAbsences')}</Text>
+                <Text style={styles.subtitle}>{t('admin.absencesDesc')}</Text>
+              </View>
+              <Pressable style={styles.outlineButton} onPress={loadAbsenceFlags}>
+                <Text style={styles.outlineButtonText}>{t('common.refresh')}</Text>
+              </Pressable>
+            </View>
+            {absenceLoading ? (
+              <Text style={styles.emptyTableText}>{t('common.loading')}</Text>
+            ) : absenceFlags.length === 0 && absenceWarnings.length === 0 ? (
+              <Text style={styles.emptyTableText}>{t('admin.noAbsenceConcerns')}</Text>
+            ) : (
+              <>
+                {absenceFlags.length > 0 && (
+                  <>
+                    <View style={styles.absenceSectionLabel}>
+                      <Text style={styles.absenceSectionLabelText}>{t('admin.flagged')}</Text>
+                    </View>
+                    {absenceFlags.map((a) => (
+                      <View key={a.worker_id} style={styles.requestRow}>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.requestWorkerRow}>
+                            <Text style={styles.requestWorker}>#{a.work_number} {a.full_name}</Text>
+                            <GroupPill group={a.house_group} />
+                          </View>
+                          <Text style={styles.requestMeta}>{t('admin.absentSince')} {a.since_date}</Text>
+                        </View>
+                        <View style={[styles.statusBadge, styles.statusInactive]}>
+                          <Text style={[styles.statusText, { color: '#c0392b' }]}>
+                            {a.consecutive_days} {t('admin.daysAbsent')}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
+                {absenceWarnings.length > 0 && (
+                  <>
+                    <View style={styles.absenceSectionLabel}>
+                      <Text style={[styles.absenceSectionLabelText, { color: '#b45309' }]}>{t('admin.warning')}</Text>
+                    </View>
+                    {absenceWarnings.map((a) => (
+                      <View key={a.worker_id} style={styles.requestRow}>
+                        <View style={{ flex: 1 }}>
+                          <View style={styles.requestWorkerRow}>
+                            <Text style={styles.requestWorker}>#{a.work_number} {a.full_name}</Text>
+                            <GroupPill group={a.house_group} />
+                          </View>
+                          <Text style={styles.requestMeta}>{t('admin.absentSince')} {a.since_date}</Text>
+                        </View>
+                        <View style={[styles.statusBadge, styles.statusPending]}>
+                          <Text style={[styles.statusText, { color: '#b45309' }]}>
+                            {a.consecutive_days} {t('admin.daysAbsent')}
+                          </Text>
+                        </View>
+                      </View>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
+          </View>
+        )}
       </ScrollView>
 
       {/* INVITE MODAL */}
@@ -802,6 +987,48 @@ export default function AdminScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* REJECT REQUEST MODAL */}
+      <Modal
+        visible={!!rejectTarget}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !rejecting && setRejectTarget(null)}
+      >
+        <KeyboardAvoidingView style={styles.modalOverlay} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+          <View style={[styles.modalCard, styles.smallModalCard]}>
+            <Text style={styles.modalTitle}>{t('requests.rejectTitle')}</Text>
+            <View style={styles.field}>
+              <Text style={styles.label}>{t('requests.rejectNoteLabel')}</Text>
+              <TextInput
+                style={styles.input}
+                placeholder={t('requests.rejectNotePlaceholder')}
+                placeholderTextColor={COLORS.textMuted}
+                value={rejectNote}
+                onChangeText={setRejectNote}
+              />
+            </View>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={styles.cancelButton}
+                onPress={() => setRejectTarget(null)}
+                disabled={rejecting}
+              >
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalPrimaryButton, styles.dangerButton]}
+                onPress={confirmReject}
+                disabled={rejecting}
+              >
+                <Text style={styles.dangerButtonText}>
+                  {rejecting ? t('requests.rejecting') : t('requests.reject')}
+                </Text>
+              </Pressable>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -860,6 +1087,9 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 9,
     paddingHorizontal: 14,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   primaryButtonSmallText: {
     fontFamily: FONTS.bold,
@@ -1179,6 +1409,47 @@ const styles = StyleSheet.create({
     fontFamily: FONTS.medium,
     fontSize: 12,
     color: '#c0392b',
+  },
+  requestRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f0f0ec',
+  },
+  requestWorkerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 3,
+  },
+  requestWorker: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.text,
+  },
+  requestMeta: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: '#888888',
+  },
+  requestActions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  absenceSectionLabel: {
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    backgroundColor: '#fdecea',
+  },
+  absenceSectionLabelText: {
+    fontFamily: FONTS.bold,
+    fontSize: 11,
+    color: '#c0392b',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   cardTitle: {
     fontFamily: FONTS.bold,

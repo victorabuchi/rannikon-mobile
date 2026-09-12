@@ -20,10 +20,42 @@ import { COLORS, FONTS } from '../lib/theme';
 
 export default function HousemasterScreen() {
   const { t } = useLanguage();
+  const [tab, setTab] = useState('worklogs');
   const [worklogs, setWorklogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
+
+  const [requests, setRequests] = useState([]);
+  const [requestsLoaded, setRequestsLoaded] = useState(false);
+  const [forwardingId, setForwardingId] = useState(null);
+
+  const loadRequests = useCallback(async () => {
+    setRequestsLoaded(true);
+    try {
+      const { data } = await api.get('/api/leave-requests/housemaster');
+      setRequests(data.requests || []);
+    } catch {
+      // keep previous list on transient errors
+    }
+  }, []);
+
+  const forwardRequest = async (id) => {
+    setForwardingId(id);
+    try {
+      await api.post(`/api/leave-requests/${id}/forward`);
+      setRequests((prev) => prev.filter((r) => r.id !== id));
+    } catch {
+      Alert.alert(t('common.error'), t('requests.submitFailed'));
+    } finally {
+      setForwardingId(null);
+    }
+  };
+
+  const handleTabChange = (key) => {
+    setTab(key);
+    if (key === 'requests' && !requestsLoaded) loadRequests();
+  };
 
   const loadWorklogs = useCallback(async () => {
     const { data } = await api.get('/api/admin/housemaster-worklogs');
@@ -82,24 +114,85 @@ export default function HousemasterScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />
         }
       >
-        <View style={styles.header}>
-          <View>
-            <Text style={styles.subtitle}>{t('housemaster.workLogsSentDesc')}</Text>
-          </View>
-          <Pressable style={styles.outlineButton} onPress={loadWorklogs}>
-            <Text style={styles.outlineButtonText}>{t('common.refresh')}</Text>
-          </Pressable>
+        <View style={styles.tabRow}>
+          {[
+            ['worklogs', t('housemaster.tabWorklogs')],
+            ['requests', t('housemaster.tabRequests')],
+          ].map(([key, label]) => (
+            <Pressable
+              key={key}
+              style={[styles.tabButton, tab === key && styles.tabButtonActive]}
+              onPress={() => handleTabChange(key)}
+            >
+              <Text style={[styles.tabText, tab === key && styles.tabTextActive]}>{label}</Text>
+            </Pressable>
+          ))}
         </View>
 
-        {worklogs.length === 0 ? (
-          <View style={[styles.card, styles.emptyCard]}>
-            <Text style={styles.emptyTitle}>{t('housemaster.noLogsYet')}</Text>
-            <Text style={styles.emptySubtitle}>
-              {t('housemaster.noLogsDesc')}
-            </Text>
-          </View>
-        ) : (
-          worklogs.map((wl) => <WorklogCard key={wl.id} wl={wl} onDelete={setConfirmDeleteId} />)
+        {tab === 'worklogs' && (
+          <>
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.subtitle}>{t('housemaster.workLogsSentDesc')}</Text>
+              </View>
+              <Pressable style={styles.outlineButton} onPress={loadWorklogs}>
+                <Text style={styles.outlineButtonText}>{t('common.refresh')}</Text>
+              </Pressable>
+            </View>
+
+            {worklogs.length === 0 ? (
+              <View style={[styles.card, styles.emptyCard]}>
+                <Text style={styles.emptyTitle}>{t('housemaster.noLogsYet')}</Text>
+                <Text style={styles.emptySubtitle}>
+                  {t('housemaster.noLogsDesc')}
+                </Text>
+              </View>
+            ) : (
+              worklogs.map((wl) => <WorklogCard key={wl.id} wl={wl} onDelete={setConfirmDeleteId} />)
+            )}
+          </>
+        )}
+
+        {tab === 'requests' && (
+          <>
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.title}>{t('housemaster.tabRequests')}</Text>
+              </View>
+              <Pressable style={styles.outlineButton} onPress={loadRequests}>
+                <Text style={styles.outlineButtonText}>{t('common.refresh')}</Text>
+              </Pressable>
+            </View>
+
+            {requests.length === 0 ? (
+              <View style={[styles.card, styles.emptyCard]}>
+                <Text style={styles.emptyTitle}>{t('requests.noPendingRequests')}</Text>
+                <Text style={styles.emptySubtitle}>{t('requests.noPendingRequestsDesc')}</Text>
+              </View>
+            ) : (
+              requests.map((r) => (
+                <View key={r.id} style={[styles.card, styles.requestRow]}>
+                  <View style={{ flex: 1, minWidth: 160 }}>
+                    <Text style={styles.requestWorker}>#{r.work_number} {r.full_name}</Text>
+                    <Text style={styles.requestMeta}>
+                      {t(`requests.type${r.request_type.charAt(0).toUpperCase()}${r.request_type.slice(1)}`)}
+                      {'  ·  '}{r.start_date} → {r.end_date}
+                      {r.reason ? `  ·  ${r.reason}` : ''}
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={[styles.primaryButtonSmall, forwardingId === r.id && styles.buttonDisabled]}
+                    onPress={() => forwardRequest(r.id)}
+                    disabled={forwardingId === r.id}
+                  >
+                    <Text style={styles.primaryButtonSmallText}>
+                      {forwardingId === r.id ? t('requests.forwarding') : t('requests.forward')}
+                    </Text>
+                  </Pressable>
+                </View>
+              ))
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -142,6 +235,31 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingBottom: 32,
+  },
+  tabRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginBottom: 16,
+  },
+  tabButton: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#dddddd',
+    backgroundColor: COLORS.background,
+  },
+  tabButtonActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  tabText: {
+    fontFamily: FONTS.medium,
+    fontSize: 13,
+    color: '#555555',
+  },
+  tabTextActive: {
+    color: COLORS.white,
   },
   header: {
     flexDirection: 'row',
@@ -196,6 +314,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.textMuted,
     textAlign: 'center',
+  },
+  requestRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 10,
+  },
+  requestWorker: {
+    fontFamily: FONTS.bold,
+    fontSize: 14,
+    color: COLORS.text,
+    marginBottom: 2,
+  },
+  requestMeta: {
+    fontFamily: FONTS.regular,
+    fontSize: 12,
+    color: '#888888',
+  },
+  primaryButtonSmall: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 8,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+  },
+  primaryButtonSmallText: {
+    fontFamily: FONTS.bold,
+    fontSize: 12,
+    color: COLORS.white,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   confirmOverlay: {
     flex: 1,

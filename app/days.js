@@ -220,7 +220,7 @@ export default function DaysScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <PageHeader title={t('tabs.days')} showArchiveLink />
-      <DashboardViewSwitcher active="days" />
+      <DashboardViewSwitcher active="days" showRequests />
       <View style={styles.monthHeader}>
         <Pressable onPress={goToPreviousMonth} style={styles.monthButton} hitSlop={8}>
           <Text style={styles.monthButtonText}>{'<'}</Text>

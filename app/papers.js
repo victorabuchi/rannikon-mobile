@@ -254,7 +254,7 @@ export default function PapersScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
       <PageHeader title={t('tabs.papers')} />
-      <DashboardViewSwitcher active="papers" />
+      <DashboardViewSwitcher active="papers" showRequests />
       <View style={styles.monthHeader}>
         <Pressable onPress={goToPreviousMonth} style={styles.monthButton} hitSlop={8}>
           <Text style={styles.monthButtonText}>{'<'}</Text>

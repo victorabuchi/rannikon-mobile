@@ -47,6 +47,7 @@ function RootNavigator({ fontsReady }) {
       <Stack.Protected guard={onboardingDone && !!token && !needsWorkNumber}>
         <Stack.Screen name="days" />
         <Stack.Screen name="papers" />
+        <Stack.Screen name="requests" />
         <Stack.Screen name="supervisor" />
         <Stack.Screen name="admin" />
         <Stack.Screen name="housemaster" />
