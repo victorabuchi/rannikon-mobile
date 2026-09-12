@@ -14,13 +14,15 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { GroupPill, RoleBadge, StatCard } from '../../components/Badges';
-import api from '../../lib/api';
-import { addDaysToISODate, formatDateMedium, formatDateShort, todayISODate } from '../../lib/dates';
-import { HOUSE_GROUPS } from '../../lib/houseGroups';
-import { useLanguage } from '../../lib/i18n';
-import { COLORS, FONTS } from '../../lib/theme';
+import { GroupPill, RoleBadge, StatCard } from '../components/Badges';
+import PageHeader from '../components/PageHeader';
+import api from '../lib/api';
+import { addDaysToISODate, formatDateMedium, formatDateShort, todayISODate } from '../lib/dates';
+import { HOUSE_GROUPS } from '../lib/houseGroups';
+import { useLanguage } from '../lib/i18n';
+import { COLORS, FONTS } from '../lib/theme';
 
 const ROLE_OPTIONS = ['worker', 'supervisor', 'housemaster', 'admin', 'payroll'];
 
@@ -284,14 +286,14 @@ export default function AdminScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <PageHeader title={t('admin.panel')} showMyTimesheet />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
       >
         <View style={styles.header}>
           <View style={styles.headerText}>
-            <Text style={styles.title}>{t('admin.panel')}</Text>
             <Text style={styles.subtitle}>{t('admin.subtitle')}</Text>
           </View>
           <Pressable
@@ -800,7 +802,7 @@ export default function AdminScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

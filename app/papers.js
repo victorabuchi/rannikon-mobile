@@ -9,20 +9,23 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import DashboardViewSwitcher from '../components/DashboardViewSwitcher';
 import {
   GreenPaperTable,
   OrangePaperTable,
   WeeklySummaryFull,
   WhitePaperTable,
-} from '../../components/PaperTables';
-import api from '../../lib/api';
-import { useAuth } from '../../lib/auth';
-import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
-import { exportPaperExcel, exportPaperPdf } from '../../lib/exporters';
-import { useLanguage } from '../../lib/i18n';
-import { COLORS, FONTS } from '../../lib/theme';
-import { computeEntry } from '../../lib/timesheet';
+} from '../components/PaperTables';
+import PageHeader from '../components/PageHeader';
+import api from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { MONTH_NAMES, formatDate, getDaysInMonth } from '../lib/dates';
+import { exportPaperExcel, exportPaperPdf } from '../lib/exporters';
+import { useLanguage } from '../lib/i18n';
+import { COLORS, FONTS } from '../lib/theme';
+import { computeEntry } from '../lib/timesheet';
 
 const SUBMISSION_STATUS_STYLE = {
   submitted: { bg: '#e3f2fd', text: '#1565c0' },
@@ -249,7 +252,9 @@ export default function PapersScreen() {
   };
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <PageHeader title={t('tabs.papers')} />
+      <DashboardViewSwitcher active="papers" />
       <View style={styles.monthHeader}>
         <Pressable onPress={goToPreviousMonth} style={styles.monthButton} hitSlop={8}>
           <Text style={styles.monthButtonText}>{'<'}</Text>
@@ -585,7 +590,7 @@ export default function PapersScreen() {
           </View>
         </ScrollView>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 

@@ -45,7 +45,12 @@ function RootNavigator({ fontsReady }) {
         <Stack.Screen name="complete-profile" options={{ gestureEnabled: false }} />
       </Stack.Protected>
       <Stack.Protected guard={onboardingDone && !!token && !needsWorkNumber}>
-        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="days" />
+        <Stack.Screen name="papers" />
+        <Stack.Screen name="supervisor" />
+        <Stack.Screen name="admin" />
+        <Stack.Screen name="housemaster" />
+        <Stack.Screen name="profile" />
       </Stack.Protected>
       <Stack.Protected guard={onboardingDone && !token}>
         <Stack.Screen name="login" />

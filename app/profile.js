@@ -10,12 +10,14 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
 
-import api from '../../lib/api';
-import { useAuth } from '../../lib/auth';
-import { useLanguage } from '../../lib/i18n';
-import { COLORS, FONTS } from '../../lib/theme';
+import PageHeader from '../components/PageHeader';
+import api from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { useLanguage } from '../lib/i18n';
+import { COLORS, FONTS } from '../lib/theme';
 
 const ROLE_LABEL_KEY = {
   worker: 'profile.roleWorker',
@@ -124,10 +126,12 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      refreshControl={
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <PageHeader title={t('tabs.profile')} />
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
+        refreshControl={
         <RefreshControl
           refreshing={refreshing}
           onRefresh={onRefresh}
@@ -222,7 +226,8 @@ export default function ProfileScreen() {
           {signingOut ? t('profile.signingOut') : t('profile.signOut')}
         </Text>
       </Pressable>
-    </ScrollView>
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
@@ -230,6 +235,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.background,
+  },
+  scroll: {
+    flex: 1,
   },
   content: {
     padding: 24,

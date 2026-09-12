@@ -12,18 +12,21 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
+import DashboardViewSwitcher from '../components/DashboardViewSwitcher';
 import {
   GreenPaperTable,
   InlineWeeklySummary,
   OrangePaperTable,
   WhitePaperTable,
-} from '../../components/PaperTables';
-import api from '../../lib/api';
-import { MONTH_NAMES, formatDate, getDaysInMonth } from '../../lib/dates';
-import { useLanguage } from '../../lib/i18n';
-import { COLORS, FONTS } from '../../lib/theme';
-import { VALID_START_TIMES, computeEntry } from '../../lib/timesheet';
+} from '../components/PaperTables';
+import PageHeader from '../components/PageHeader';
+import api from '../lib/api';
+import { MONTH_NAMES, formatDate, getDaysInMonth } from '../lib/dates';
+import { useLanguage } from '../lib/i18n';
+import { COLORS, FONTS } from '../lib/theme';
+import { VALID_START_TIMES, computeEntry } from '../lib/timesheet';
 
 const EMPTY_FORM = { start: '', finish: '', break_mins: '30', work: '' };
 const EMPTY_GREEN_FORM = { start: '', finish: '', kg: '', what: '' };
@@ -215,7 +218,9 @@ export default function DaysScreen() {
   const days = Array.from({ length: daysInMonth }, (_, i) => i + 1);
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <PageHeader title={t('tabs.days')} showArchiveLink />
+      <DashboardViewSwitcher active="days" />
       <View style={styles.monthHeader}>
         <Pressable onPress={goToPreviousMonth} style={styles.monthButton} hitSlop={8}>
           <Text style={styles.monthButtonText}>{'<'}</Text>
@@ -494,7 +499,7 @@ export default function DaysScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

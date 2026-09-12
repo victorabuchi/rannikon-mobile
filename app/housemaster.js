@@ -11,12 +11,14 @@ import {
   Text,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import api from '../../lib/api';
-import { formatDateMedium } from '../../lib/dates';
-import { exportHousemasterWorklogExcel, exportHousemasterWorklogPdf } from '../../lib/exporters';
-import { useLanguage } from '../../lib/i18n';
-import { COLORS, FONTS } from '../../lib/theme';
+import PageHeader from '../components/PageHeader';
+import api from '../lib/api';
+import { formatDateMedium } from '../lib/dates';
+import { exportHousemasterWorklogExcel, exportHousemasterWorklogPdf } from '../lib/exporters';
+import { useLanguage } from '../lib/i18n';
+import { COLORS, FONTS } from '../lib/theme';
 
 const TABLE_HEADERS = [
   { key: 'work', labelKey: 'housemaster.colWorkNum', width: 56 },
@@ -227,7 +229,8 @@ export default function HousemasterScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <PageHeader title={t('housemaster.workLogs')} showMyTimesheet />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={
@@ -236,7 +239,6 @@ export default function HousemasterScreen() {
       >
         <View style={styles.header}>
           <View>
-            <Text style={styles.title}>{t('housemaster.workLogs')}</Text>
             <Text style={styles.subtitle}>{t('housemaster.workLogsSentDesc')}</Text>
           </View>
           <Pressable style={styles.outlineButton} onPress={loadWorklogs}>
@@ -277,7 +279,7 @@ export default function HousemasterScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </SafeAreaView>
   );
 }
 

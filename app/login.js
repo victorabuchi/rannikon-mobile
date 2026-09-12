@@ -10,19 +10,20 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
-import { Link } from 'expo-router';
+import { Link, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
 
 import LanguageSelector from '../components/LanguageSelector';
 import api, { API_BASE_URL } from '../lib/api';
-import { useAuth } from '../lib/auth';
+import { roleHomePath, useAuth } from '../lib/auth';
 import { useLanguage } from '../lib/i18n';
 import { COLORS, FONTS } from '../lib/theme';
 
 export default function LoginScreen() {
   const { signIn } = useAuth();
   const { t } = useLanguage();
+  const router = useRouter();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -46,6 +47,7 @@ export default function LoginScreen() {
         password,
       });
       await signIn(data.token, data.worker);
+      router.replace(roleHomePath(data.worker.role));
     } catch (err) {
       setError(err.response?.data?.error || t('auth.loginError'));
     } finally {
@@ -73,6 +75,9 @@ export default function LoginScreen() {
 
       const worker = JSON.parse(queryParams.worker);
       await signIn(queryParams.token, worker);
+      if (!worker.work_number?.startsWith('G-')) {
+        router.replace(roleHomePath(worker.role));
+      }
     } catch {
       setError(t('auth.googleSignInFailed'));
     } finally {

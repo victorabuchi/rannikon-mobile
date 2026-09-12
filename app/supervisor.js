@@ -13,16 +13,18 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
-import { GroupPill } from '../../components/Badges';
-import DatePickerModal from '../../components/DatePickerModal';
-import api from '../../lib/api';
-import { useAuth } from '../../lib/auth';
-import { formatDateLong, formatDateMedium, todayISODate } from '../../lib/dates';
-import { exportWorkLogExcel, exportWorkLogPdf } from '../../lib/exporters';
-import { GROUP_COLORS, getHouseGroup } from '../../lib/houseGroups';
-import { useLanguage } from '../../lib/i18n';
-import { COLORS, FONTS } from '../../lib/theme';
+import { GroupPill } from '../components/Badges';
+import DatePickerModal from '../components/DatePickerModal';
+import PageHeader from '../components/PageHeader';
+import api from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { formatDateLong, formatDateMedium, todayISODate } from '../lib/dates';
+import { exportWorkLogExcel, exportWorkLogPdf } from '../lib/exporters';
+import { GROUP_COLORS, getHouseGroup } from '../lib/houseGroups';
+import { useLanguage } from '../lib/i18n';
+import { COLORS, FONTS } from '../lib/theme';
 
 const BREAK_QUICK_OPTIONS = [10, 15, 20, 30, 45];
 
@@ -295,7 +297,8 @@ export default function SupervisorScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container} edges={['top']}>
+      <PageHeader title={t('sup.panel')} showMyTimesheet />
       <ScrollView
         contentContainerStyle={styles.content}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={COLORS.primary} />}
@@ -303,7 +306,6 @@ export default function SupervisorScreen() {
         <View style={styles.header}>
           <View style={styles.headerTop}>
             <View style={{ flex: 1 }}>
-              <Text style={styles.title}>{t('sup.panel')}</Text>
               <View style={styles.subtitleRow}>
                 <Text style={styles.subtitle}>{formatDateLong(selectedDate)}</Text>
                 {!isToday && (
@@ -816,7 +818,7 @@ export default function SupervisorScreen() {
         }}
         onClose={() => setShowDatePicker(false)}
       />
-    </View>
+    </SafeAreaView>
   );
 }
 
