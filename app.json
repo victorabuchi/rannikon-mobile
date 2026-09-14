@@ -19,6 +19,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "package": "com.rannikon.app",
+      "versionCode": 7,
       "permissions": [
         "android.permission.RECORD_AUDIO"
       ]

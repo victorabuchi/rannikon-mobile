@@ -39,3 +39,12 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# signing credentials (keystores, passwords) - never commit
+/credentials
+credentials.json
+
+# local build outputs
+/build-artifacts
+*.aab
+*.apk
