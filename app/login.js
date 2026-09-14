@@ -13,6 +13,8 @@ import {
 import { Link, useRouter } from 'expo-router';
 import * as Linking from 'expo-linking';
 import * as WebBrowser from 'expo-web-browser';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 
 import LanguageSelector from '../components/LanguageSelector';
 import api, { API_BASE_URL } from '../lib/api';
@@ -24,6 +26,7 @@ export default function LoginScreen() {
   const { signIn } = useAuth();
   const { t } = useLanguage();
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -90,7 +93,7 @@ export default function LoginScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.langBar}>
+      <View style={[styles.langBar, { paddingTop: insets.top + 8 }]}>
         <LanguageSelector />
       </View>
       <ScrollView
@@ -151,6 +154,11 @@ export default function LoginScreen() {
           disabled={googleLoading}
           style={[styles.googleButton, googleLoading && styles.buttonDisabled]}
         >
+          {!googleLoading && (
+            <View style={styles.googleIconWrap}>
+              <Ionicons name="logo-google" size={16} color="#4285F4" />
+            </View>
+          )}
           <Text style={styles.googleButtonText}>
             {googleLoading ? t('auth.signingIn') : t('auth.continueWithGoogle')}
           </Text>
@@ -176,7 +184,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
-    paddingTop: 8,
   },
   container: {
     flexGrow: 1,
@@ -214,14 +221,22 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: '#fff',
     borderWidth: 1,
-    borderColor: '#ddd',
+    borderColor: '#dadce0',
     borderRadius: 8,
-    padding: 12,
+    paddingVertical: 12,
     marginTop: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
+  },
+  googleIconWrap: {
+    marginRight: 10,
   },
   googleButtonText: {
     fontSize: 15,
-    color: '#333',
+    color: '#3c4043',
     fontWeight: '600',
   },
   label: {

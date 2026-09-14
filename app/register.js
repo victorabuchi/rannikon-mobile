@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Link } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import LanguageSelector from '../components/LanguageSelector';
 import api from '../lib/api';
@@ -20,6 +21,7 @@ import { COLORS, FONTS } from '../lib/theme';
 export default function RegisterScreen() {
   const { signIn } = useAuth();
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets();
   const [fullName, setFullName] = useState('');
   const [workNumber, setWorkNumber] = useState('');
   const [email, setEmail] = useState('');
@@ -69,7 +71,7 @@ export default function RegisterScreen() {
       style={styles.flex}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <View style={styles.langBar}>
+      <View style={[styles.langBar, { paddingTop: insets.top + 8 }]}>
         <LanguageSelector />
       </View>
       <ScrollView
@@ -178,7 +180,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'flex-end',
     paddingHorizontal: 16,
-    paddingTop: 8,
   },
   container: {
     flexGrow: 1,
