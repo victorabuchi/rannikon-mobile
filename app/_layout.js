@@ -38,6 +38,7 @@ function RootNavigator({ fontsReady }) {
         contentStyle: { backgroundColor: COLORS.background },
       }}
     >
+      <Stack.Screen name="index" options={{ animation: 'none' }} />
       <Stack.Protected guard={!onboardingDone}>
         <Stack.Screen name="onboarding" options={{ gestureEnabled: false, animation: 'none' }} />
       </Stack.Protected>
