@@ -32,7 +32,11 @@
         {
           "photosPermission": "Rannikon uses your photo library to set a profile picture."
         }
-      ]
+      ],
+      "expo-font",
+      "expo-sharing",
+      "expo-splash-screen",
+      "expo-status-bar"
     ]
   }
 }
