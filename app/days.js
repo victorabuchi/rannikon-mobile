@@ -15,6 +15,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import DashboardViewSwitcher from '../components/DashboardViewSwitcher';
+import NewsFeed from '../components/NewsFeed';
 import {
   GreenPaperTable,
   InlineWeeklySummary,
@@ -243,6 +244,7 @@ export default function DaysScreen() {
           keyExtractor={(day) => String(day)}
           contentContainerStyle={styles.listContent}
           keyboardShouldPersistTaps="handled"
+          ListHeaderComponent={<NewsFeed />}
           refreshControl={
             <RefreshControl refreshing={false} onRefresh={loadEntries} tintColor={COLORS.primary} />
           }
