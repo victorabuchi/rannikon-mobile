@@ -1,6 +1,7 @@
 import { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Image,
   Pressable,
   RefreshControl,
@@ -32,6 +33,7 @@ export default function ProfileScreen() {
   const { worker, signOut, refreshWorker, signIn } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [photoError, setPhotoError] = useState('');
 
@@ -57,6 +59,47 @@ export default function ProfileScreen() {
     } finally {
       setSigningOut(false);
     }
+  };
+
+  const performDelete = async () => {
+    setDeleting(true);
+    try {
+      await api.delete('/api/auth/me');
+      await signOut();
+    } catch (err) {
+      setDeleting(false);
+      Alert.alert(
+        t('profile.deleteFailedTitle'),
+        err.response?.data?.error || t('profile.deleteFailedMessage')
+      );
+    }
+  };
+
+  const handleDeleteAccount = () => {
+    Alert.alert(
+      t('profile.deleteAccountTitle'),
+      t('profile.deleteAccountWarning'),
+      [
+        { text: t('profile.cancel'), style: 'cancel' },
+        {
+          text: t('profile.deleteAccountContinue'),
+          style: 'destructive',
+          onPress: () =>
+            Alert.alert(
+              t('profile.deleteAccountConfirmTitle'),
+              t('profile.deleteAccountConfirmMessage'),
+              [
+                { text: t('profile.cancel'), style: 'cancel' },
+                {
+                  text: t('profile.deleteAccountConfirm'),
+                  style: 'destructive',
+                  onPress: performDelete,
+                },
+              ]
+            ),
+        },
+      ]
+    );
   };
 
   const handleChangePhoto = async () => {
@@ -224,6 +267,16 @@ export default function ProfileScreen() {
       >
         <Text style={styles.signOutButtonText}>
           {signingOut ? t('profile.signingOut') : t('profile.signOut')}
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [styles.deleteButton, pressed && styles.signOutButtonPressed, deleting && styles.buttonDisabled]}
+        onPress={handleDeleteAccount}
+        disabled={deleting}
+      >
+        <Text style={styles.deleteButtonText}>
+          {deleting ? t('profile.deletingAccount') : t('profile.deleteAccount')}
         </Text>
       </Pressable>
       </ScrollView>
@@ -395,6 +448,18 @@ const styles = StyleSheet.create({
   },
   buttonDisabled: {
     opacity: 0.7,
+  },
+  deleteButton: {
+    width: '100%',
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  deleteButtonText: {
+    fontFamily: FONTS.medium,
+    fontSize: 14,
+    color: COLORS.error,
+    textDecorationLine: 'underline',
   },
   signOutButtonText: {
     fontFamily: FONTS.medium,
