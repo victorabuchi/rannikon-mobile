@@ -25,7 +25,8 @@
       "versionCode": 7,
       "permissions": [
         "android.permission.RECORD_AUDIO"
-      ]
+      ],
+      "userInterfaceStyle": "light"
     },
     "web": {
       "favicon": "./assets/favicon.png"
@@ -43,7 +44,8 @@
       "expo-font",
       "expo-sharing",
       "expo-splash-screen",
-      "expo-status-bar"
+      "expo-status-bar",
+      "expo-system-ui"
     ],
     "extra": {
       "router": {},
